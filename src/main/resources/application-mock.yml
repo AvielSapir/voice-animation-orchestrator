@@ -1,0 +1,14 @@
+orchestrator:
+  vad:
+    silence-threshold-ms: 900
+  ai:
+    base-url: http://localhost:8081
+    timeout-ms: 2000
+  stt:
+    provider: mock
+  tts:
+    provider: mock
+
+logging:
+  level:
+    com.team5.voiceorchestrator: DEBUG

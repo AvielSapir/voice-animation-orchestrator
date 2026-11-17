@@ -1,0 +1,41 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: voice-animation-orchestrator
+
+orchestrator:
+  websocket:
+    endpoint: /ws/unity
+    allowed-origins: "*"
+    max-binary-message-size-bytes: 65536
+    max-text-message-size-bytes: 16384
+  audio:
+    sample-rate-hz: 16000
+    channels: 1
+    bits-per-sample: 16
+    chunk-duration-ms: 20
+  vad:
+    silence-threshold-ms: 1000
+    energy-threshold: 0.02
+    min-speech-duration-ms: 250
+  ai:
+    base-url: ${AI_ENGINE_BASE_URL:http://localhost:8081}
+    turn-endpoint: /api/v1/turn
+    timeout-ms: 5000
+  stt:
+    provider: ${STT_PROVIDER:default}
+    api-key: ${STT_API_KEY:}
+    language: he-IL
+    timeout-ms: 4000
+  tts:
+    provider: ${TTS_PROVIDER:default}
+    api-key: ${TTS_API_KEY:}
+    voice-id: ${TTS_VOICE_ID:default}
+    timeout-ms: 4000
+  async:
+    core-pool-size: 8
+    max-pool-size: 32
+    queue-capacity: 256
+    thread-name-prefix: orch-
