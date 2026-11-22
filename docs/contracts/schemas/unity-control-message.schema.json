@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://team5.local/contracts/v1/unity-control-message.schema.json",
+  "title": "UnityControlMessage",
+  "description": "Contract 3 (v1.0.0) bidirectional WebSocket JSON text control frame between Team 4 Unity client and Team 5 Orchestrator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "sessionId",
+    "timestampMs"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "session_start",
+        "session_end",
+        "ping",
+        "pong",
+        "barge_in",
+        "error"
+      ],
+      "description": "Control message event type."
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active child therapy session identifier."
+    },
+    "timestampMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix epoch timestamp in milliseconds."
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional human-readable status or error message (typically provided on error)."
+    }
+  },
+  "examples": [
+    {
+      "type": "session_start",
+      "sessionId": "session-child-402",
+      "timestampMs": 1795352000000
+    },
+    {
+      "type": "ping",
+      "sessionId": "session-child-402",
+      "timestampMs": 1795352015000
+    },
+    {
+      "type": "error",
+      "sessionId": "session-child-402",
+      "timestampMs": 1795352020100,
+      "message": "Audio frame must be 16kHz 16-bit mono PCM_S16LE"
+    }
+  ]
+}

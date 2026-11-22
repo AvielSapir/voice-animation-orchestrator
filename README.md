@@ -22,6 +22,14 @@ Unity (Team 4) --[PCM Audio Chunks]--> Transport --> VAD --> STT --> AI (Team 3)
 | **Dev B (Voice)** | `src/main/java/com/team5/voiceorchestrator/voice/mock/`, `voice/vad/`, `voice/providers/` | Server-side VAD (`ServerVadDetector`), mock and real STT/TTS implementations (`SttClient`, `TtsClient`). |
 | **Dev C (Orchestration & QA)** | `src/main/java/com/team5/voiceorchestrator/ai/`, `orchestration/` (excluding `ConversationOrchestrator.java`), `src/test/java/com/team5/voiceorchestrator/simulator/` | Team 3 AI client (`MockAiClient`, `RemoteAiClient`), `TurnManager`, `AnimationMapper`, `LatencyTracker`, and end-to-end Unity simulator tests. |
 
+## Locked Contracts (`v1.0.0`)
+
+Phase 1 communication contracts and schemas are documented under [`docs/contracts/`](./docs/contracts/README.md):
+
+- **Index & Verified Internal Interfaces:** [`docs/contracts/README.md`](./docs/contracts/README.md)
+- **Contract 3 (Team 5 ↔ Team 4 Unity C#):** [`contract-3-unity.md`](./docs/contracts/contract-3-unity.md) (Technical / Agent-ready) | [`contract-3-unity.html`](./docs/contracts/contract-3-unity.html) (Hebrew overview)
+- **Contract 4 (Team 5 ↔ Team 3 AI Service):** [`contract-4-ai.md`](./docs/contracts/contract-4-ai.md) (Technical / Agent-ready) | [`contract-4-ai.html`](./docs/contracts/contract-4-ai.html) (Hebrew overview)
+
 ## Running Locally (`mock` Profile)
 
 The `mock` profile enables local development and end-to-end testing without external STT, TTS, or Team 3 AI services.

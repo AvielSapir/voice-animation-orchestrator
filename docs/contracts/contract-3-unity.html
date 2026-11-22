@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>חוזה 3 — תקשורת חיה בין מסך הילד (Unity) למתזמר הקול (צוות 5)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Varela+Round&display=swap');
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      direction: rtl;
+      text-align: right;
+      background-color: #FAF7F0;
+      color: #1F2421;
+      font-family: "Assistant", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 17.5px;
+      font-weight: 400;
+      line-height: 1.82;
+    }
+
+    .doc-container {
+      max-width: 1180px;
+      width: 94%;
+      margin: 0 auto;
+      padding: 44px 28px 84px;
+    }
+
+    @media (max-width: 680px) {
+      .doc-container {
+        width: 100%;
+        padding: 24px 16px 60px;
+      }
+    }
+
+    h1, h2, h3 {
+      font-family: "Varela Round", "Assistant", sans-serif;
+      font-weight: 400;
+      color: #1F2421;
+      margin-top: 0;
+    }
+
+    h1 { font-size: 2rem; line-height: 1.34; margin-bottom: 14px; }
+    h2 { font-size: 1.48rem; line-height: 1.38; margin-bottom: 12px; }
+    h3 { font-size: 1.12rem; line-height: 1.45; margin-bottom: 8px; }
+
+    p {
+      margin: 0 0 16px 0;
+      color: #1F2421;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    .text-secondary { color: #434C46; }
+    .text-muted { color: #646E68; font-size: 0.94rem; }
+    .lead-subtitle { color: #434C46; font-size: 1.04rem; margin-bottom: 18px; }
+
+    ul, ol {
+      margin: 0 0 16px 0;
+      padding-right: 22px;
+      padding-left: 0;
+    }
+
+    li { margin-bottom: 8px; color: #1F2421; }
+    li:last-child { margin-bottom: 0; }
+
+    code {
+      font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85em;
+      background-color: #E4DFD2;
+      color: #1F2421;
+      border: 1px solid #C9C2B2;
+      padding: 1px 7px;
+      border-radius: 6px;
+      direction: ltr;
+      unicode-bidi: isolate;
+      display: inline-block;
+      max-width: 100%;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    figure {
+      margin: 16px 0 0 0;
+    }
+
+    figcaption {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #434C46;
+      margin-bottom: 8px;
+    }
+
+    pre {
+      margin: 0;
+      font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.86rem;
+      line-height: 1.65;
+      background-color: #F6F4EC;
+      color: #1F2421;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 16px 20px;
+      direction: ltr;
+      text-align: left;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    pre > code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      border-radius: 0;
+      display: block;
+      font-size: inherit;
+      white-space: pre;
+      word-break: normal;
+    }
+
+    a {
+      color: #234235;
+      font-weight: 600;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 3px;
+    }
+
+    a:hover {
+      color: #173025;
+    }
+
+    section.chapter, header.hero-chapter { margin-bottom: 38px; }
+
+    .section-card, .header-card {
+      background-color: #EFECE3;
+      border: 1px solid #D8D2C5;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 1px 3px rgba(25, 30, 26, 0.04);
+    }
+
+    @media (max-width: 680px) {
+      .section-card, .header-card { padding: 20px 18px; }
+    }
+
+    .sub-card, .callout {
+      background-color: #E4DFD2;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+
+    .sub-card-light {
+      background-color: #F6F4EC;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+
+    .diag-wrap { margin-top: 20px; margin-bottom: 20px; }
+
+    .divider {
+      height: 1px;
+      background-color: #D8D2C5;
+      margin: 24px 0;
+      width: 100%;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 3px 11px;
+      border-radius: 999px;
+      border: 1px solid #C9C2B2;
+      margin-bottom: 10px;
+      white-space: nowrap;
+    }
+
+    .tag-sage { background-color: #D6E3DC; color: #234235; border-color: #AFC8BA; }
+    .tag-slate { background-color: #D9E2E6; color: #263B44; border-color: #B7C6CD; }
+    .tag-ochre { background-color: #EAE0C8; color: #523F1B; border-color: #D1C2A0; }
+    .tag-clay { background-color: #EBD9D0; color: #5A3222; border-color: #D4B8AA; }
+    .tag-neutral { background-color: #E4DFD2; color: #434C46; border-color: #C9C2B2; }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .meta-pill {
+      background-color: #E4DFD2;
+      border: 1px solid #C9C2B2;
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 0.88rem;
+      color: #434C46;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-3 { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (max-width: 760px) {
+      .grid-2 { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    /* Gentle Flow Diagram */
+    .flow-box {
+      background-color: #F6F4EC;
+      border: 1px solid #C9C2B2;
+      border-radius: 12px;
+      padding: 22px 24px;
+    }
+
+    .flow-lane-title {
+      font-family: "Varela Round", "Assistant", sans-serif;
+      font-size: 1.05rem;
+      color: #2D5242;
+      margin-bottom: 14px;
+    }
+
+    .flow-row-3 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr) 36px minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 820px) {
+      .flow-row-3 {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+      .flow-row-3 .flow-arrow-cell {
+        margin: 0 auto;
+        transform: rotate(-90deg);
+      }
+    }
+
+    .flow-arrow-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #2D5242;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .flow-node {
+      background-color: #EFECE3;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .flow-node.highlight {
+      background-color: #D6E3DC;
+      border: 1.5px solid #2D5242;
+      color: #173025;
+    }
+
+    .flow-data-label {
+      margin-top: auto;
+      padding-top: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #2D5242;
+    }
+
+    .turn-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 18px 0;
+      padding: 10px 16px;
+      background-color: #E4DFD2;
+      border: 1px solid #C9C2B2;
+      border-radius: 8px;
+      font-size: 0.94rem;
+      font-weight: 600;
+      color: #434C46;
+      text-align: center;
+    }
+
+    /* Native Disclosures */
+    details.soft-disclosure {
+      margin-top: 18px;
+      background-color: #F6F4EC;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 12px 18px;
+    }
+
+    details.soft-disclosure > summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #234235;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    details.soft-disclosure > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.soft-disclosure > summary::before {
+      content: "◀";
+      font-size: 0.78em;
+      color: #2D5242;
+      transition: transform 0.18s ease;
+    }
+
+    details.soft-disclosure[open] > summary::before {
+      transform: rotate(-90deg);
+    }
+
+    details.soft-disclosure[open] > summary {
+      margin-bottom: 10px;
+    }
+
+    /* Responsive Tables (per modern-web-guidance responsive-table) */
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      max-block-size: min(560px, 80vh);
+      container-type: inline-size;
+      margin-top: 16px;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      background-color: #F6F4EC;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: #F6F4EC;
+    }
+
+    .table-caption {
+      caption-side: top;
+      text-align: right;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #434C46;
+      background-color: #EFECE3;
+      border-bottom: 1px solid #C9C2B2;
+    }
+
+    .data-table th, .data-table td {
+      border-bottom: 1px solid #D8D2C5;
+      border-inline-end: 1px solid #D8D2C5;
+      padding: 12px 15px;
+      text-align: right;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+
+    .data-table tr > *:last-child {
+      border-inline-end: none;
+    }
+
+    .data-table tbody tr:last-child > * {
+      border-bottom: none;
+    }
+
+    .data-table thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 2;
+    }
+
+    .data-table thead th {
+      background-color: #E4DFD2;
+      color: #1F2421;
+      font-weight: 700;
+      border-bottom: 1px solid #C9C2B2;
+    }
+
+    .data-table tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+      background-color: #EFECE3;
+      color: #1F2421;
+      font-weight: 600;
+    }
+
+    .table-packet {
+      --label-2: "סוג";
+      --label-3: "חובה?";
+      --label-4: "הסבר פשוט";
+    }
+
+    .table-anim {
+      --label-2: "מה הדמות עושה";
+      --label-3: "מתי משתמשים בזה";
+    }
+
+    .table-ctrl {
+      --label-2: "מי שולח";
+      --label-3: "מה המשמעות";
+    }
+
+    @container (width < 600px) {
+      .data-table,
+      .data-table thead,
+      .data-table tbody,
+      .data-table tr,
+      .data-table th,
+      .data-table td {
+        display: block;
+      }
+
+      .data-table thead {
+        display: none;
+      }
+
+      .data-table tr {
+        margin: 12px;
+        border: 1px solid #C9C2B2;
+        border-radius: 8px;
+        background-color: #FAF7F0;
+        overflow: hidden;
+      }
+
+      .data-table th, .data-table td {
+        border-inline-end: none;
+        border-bottom: 1px solid #E4DFD2;
+      }
+
+      .data-table tbody th {
+        position: sticky;
+        inset-block-start: 0;
+        inset-inline-start: auto;
+        z-index: 2;
+        background-color: #E4DFD2;
+      }
+
+      .data-table td:nth-child(2)::before {
+        content: var(--label-2) ": ";
+        font-weight: 700;
+        color: #434C46;
+      }
+
+      .data-table td:nth-child(3)::before {
+        content: var(--label-3) ": ";
+        font-weight: 700;
+        color: #434C46;
+      }
+
+      .data-table td:nth-child(4)::before {
+        content: var(--label-4) ": ";
+        font-weight: 700;
+        color: #434C46;
+      }
+    }
+
+    .doc-footer {
+      text-align: center;
+      color: #646E68;
+      font-size: 0.92rem;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-container">
+
+    <header class="hero-chapter">
+      <div class="header-card">
+        <span class="tag tag-sage">חוזה 3 • גרסה 1.0 • נעול לשלב 1</span>
+        <h1>חוזה 3: התקשורת החיה בין מסך הילד (Unity) למתזמר הקול (צוות 5)</h1>
+        <p class="lead-subtitle">
+          הסבר פשוט וברור על איך הקול של הילד זורם מהמיקרופון אל השרת שלנו, ואיך קול הדמות, התנועה והשפתיים חוזרים למסך בזמן אמת.
+        </p>
+        <p>
+          האפליקציה של <strong>צוות 4 (Unity)</strong> היא המסך שיושב מול הילד. כדי שהילד יחווה שיחה טבעית, חמה ורציפה בלי תפריטים מסובכים או עיכובים מורגשים,
+          צוות 4 מחזיק חיבור פתוח וחי מול השירות של <strong>צוות 5</strong>. Unity לא צריכה לחשוב מתי הילד סיים משפט או מה הדמות תענה —
+          היא פשוט מזרימה את הקול פנימה, ומקבלת בחזרה חבילה מוכנה להפעלה.
+        </p>
+        <div class="meta-row">
+          <span class="meta-pill">צדדים: צוות 4 (Unity C#) ↔ צוות 5 (Orchestrator)</span>
+          <span class="meta-pill">פרוטוקול: WebSocket בזמן אמת</span>
+          <span class="meta-pill">מסמך טכני לסוכן: <a href="./contract-3-unity.md"><code lang="en" dir="ltr">contract-3-unity.md</code></a></span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+
+      <!-- Section 1: Big Picture Flow -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 1 • התמונה הפשוטה</span>
+          <h2>איך הקול והתנועה עוברים הלוך ושוב?</h2>
+          <p class="text-secondary">
+            במקום שכל צד יצטרך לנחש מתי להתחיל ומתי לעצור, ההסכם בינינו מתחלק לשני מסלולים פשוטים על גבי אותו חיבור פתוח (מימין לשמאל):
+          </p>
+
+          <div class="diag-wrap flow-box">
+            <div class="flow-lane-title">הדרך הלוך: מהמיקרופון של הילד אל השרת של צוות 5</div>
+            <div class="flow-row-3">
+              <div class="flow-node">
+                <span class="tag tag-ochre">1. המיקרופון ב-Unity</span>
+                <h3>הילד מדבר אל הדמות</h3>
+                <p class="text-secondary">האפליקציה קולטת את הקול בפורמט אחיד ונקי וחותכת אותו לפרוסות קצרות של 20 אלפיות שנייה.</p>
+                <div class="flow-data-label">פורמט קבוע: PCM 16kHz מונו</div>
+              </div>
+              <div class="flow-arrow-cell" aria-hidden="true">←</div>
+              <div class="flow-node">
+                <span class="tag tag-slate">2. שידור רציף ב-WebSocket</span>
+                <h3>זרם חתיכות שמע קטנות</h3>
+                <p class="text-secondary">Unity שולחת את פרוסות השמע ברצף (גם רגעי שקט) בלי לנסות לזהות לבד מתי המשפט נגמר.</p>
+                <div class="flow-data-label">כל פרוסה: 640 בייט</div>
+              </div>
+              <div class="flow-arrow-cell" aria-hidden="true">←</div>
+              <div class="flow-node highlight">
+                <span class="tag tag-sage">3. השרת של צוות 5</span>
+                <h3>המתנה סבלנית ותגובה</h3>
+                <p class="text-secondary">השרת מקשיב בסבלנות לעצירות של ילדים, מבין שהמשפט הסתיים, פונה ל-AI ומכין תשובה קולית.</p>
+                <div class="flow-data-label">השהיית סבלנות: ~1 שנייה</div>
+              </div>
+            </div>
+
+            <div class="turn-connector">
+              <span aria-hidden="true">↓</span>
+              <span>כשתשובת ה-AI והקול מוכנים, צוות 5 אורז הכול לחבילה אחת ושולח בחזרה אל Unity</span>
+            </div>
+
+            <div class="flow-lane-title">הדרך חזור: מצוות 5 אל הדמות התלת-ממדית על המסך</div>
+            <div class="flow-row-3">
+              <div class="flow-node highlight">
+                <span class="tag tag-sage">4. אריזת התשובה בצוות 5</span>
+                <h3>קול + רגש + אנימציה</h3>
+                <p class="text-secondary">צוות 5 שולח חבילת JSON אחת המכילה את השמע של הדמות, שם האנימציה המתאימה, ונתוני שפתיים.</p>
+                <div class="flow-data-label"><code lang="en" dir="ltr">UnityResponsePacket</code></div>
+              </div>
+              <div class="flow-arrow-cell" aria-hidden="true">←</div>
+              <div class="flow-node">
+                <span class="tag tag-ochre">5. פענוח ב-Unity</span>
+                <h3>המרה לשמע והפעלת טריגר</h3>
+                <p class="text-secondary">האפליקציה הופכת את השמע לצליל נקי, ומפעילה מיד את אנימציית הגוף שנבחרה.</p>
+                <div class="flow-data-label">שמע + Animator Trigger</div>
+              </div>
+              <div class="flow-arrow-cell" aria-hidden="true">←</div>
+              <div class="flow-node">
+                <span class="tag tag-slate">6. הדמות מדברת</span>
+                <h3>דיבור מסונכרן מול הילד</h3>
+                <p class="text-secondary">הילד שומע את הדמות עונה לו בחמימות ורואה את השפתיים והבעות הפנים זזות בהתאמה.</p>
+                <div class="flow-data-label">סנכרון שפתיים רציף</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Connection & Audio Rules -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 2 • התחברות ושליחת קול מהמיקרופון</span>
+          <h2>איך פותחים שיחה ושומרים על איכות קול נקייה?</h2>
+          <div class="grid-2 diag-wrap">
+            <div class="sub-card-light">
+              <span class="tag tag-slate">חיבור פשוט ומאובטח</span>
+              <h3>כתובת החיבור וזיהוי השיחה</h3>
+              <p class="text-secondary">
+                כשמתחיל מפגש, Unity מתחברת לכתובת <code lang="en" dir="ltr">/ws/unity?sessionId=...</code>.
+                מזהה השיחה (<code lang="en" dir="ltr">sessionId</code>) הוא כרטיס הזיהוי של הילד בסשן הנוכחי — אם הוא חסר, השרת דוחה את החיבור מיד כדי לא לערבב בין שיחות.
+              </p>
+              <p class="text-secondary">
+                אם האפליקציה התנתקה לרגע והתחברה שוב עם אותו מזהה, השרת מחליף בעדינות את החיבור הישן בחדש.
+              </p>
+            </div>
+            <div class="sub-card-light">
+              <span class="tag tag-sage">פורמט השמע המוסכם</span>
+              <h3>למה דווקא PCM 16kHz בחתיכות של 20ms?</h3>
+              <p class="text-secondary">
+                אודיו גולמי מסוג <code lang="en" dir="ltr">PCM_S16LE</code> (ללא כותרות WAV מסביב) מאפשר לשני הצדדים לעבוד מהר בלי פיענוח כבד.
+                קצב של 16,000 דגימות בשנייה בערוץ אחד (מונו) מספיק בדיוק לדיבור צלול בעברית וחוסך רוחב פס.
+              </p>
+              <p class="text-secondary">
+                כל חתיכה של 20 אלפיות שנייה שוקלת בדיוק <strong>640 בייט</strong> — קטנה מספיק כדי שהשיחה תרגיש מיידית, ויציבה מספיק לרשת.
+              </p>
+            </div>
+          </div>
+
+          <div class="callout">
+            <h3>שני דגשים חשובים לשיחה טבעית עם ילדים</h3>
+            <ul>
+              <li><strong>שולחים ברצף גם בשקט:</strong> ילדים עוצרים לחשוב באמצע משפט. מנגנון הזיהוי של צוות 5 צריך לקבל גם את רגעי השקט כדי להבחין בין הפסקה למחשבה לבין סיום אמיתי של המשפט.</li>
+              <li><strong>מניעת הד בזמן שהדמות מדברת:</strong> כשהדמות עונה דרך הרמקולים, כדאי ש-Unity תמנע כניסת הד למיקרופון (בעזרת סינון הד או השתקה זמנית), אלא אם הילד מתפרץ בקול ברור באמצע.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: What Comes Back -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 3 • מה חוזר מהשרת אל Unity?</span>
+          <h2>החבילה שגורמת לדמות לדבר ולזוז</h2>
+          <p class="text-secondary">
+            בכל פעם שהדמות עונה לילד, צוות 5 שולח חבילת טקסט מסודרת (<code lang="en" dir="ltr">UnityResponsePacket</code>) שכוללת את כל מה ש-Unity צריכה כדי להשמיע את המשפט ולהנפיש את הדמות באותו רגע:
+          </p>
+
+          <div tabindex="0" role="region" aria-labelledby="tbl-caption-packet" class="table-wrapper">
+            <table class="data-table table-packet">
+              <caption id="tbl-caption-packet" class="table-caption">מבנה החבילה החוזרת ל-Unity (<code lang="en" dir="ltr">UnityResponsePacket</code>)</caption>
+              <thead>
+                <tr>
+                  <th scope="col">שדה</th>
+                  <th scope="col">סוג</th>
+                  <th scope="col">חובה?</th>
+                  <th scope="col">הסבר פשוט</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">sessionId</code></th>
+                  <td>טקסט</td>
+                  <td>כן</td>
+                  <td>מזהה המפגש הנוכחי, כדי לוודא שהתשובה שייכת לחדר הנכון.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">turnId</code></th>
+                  <td>טקסט</td>
+                  <td>כן</td>
+                  <td>מזהה ייחודי לתשובה הזו, כדי לא לנגן תשובה ישנה אם הילד כבר דיבר מחדש.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">audioBase64</code></th>
+                  <td>טקסט (Base64)</td>
+                  <td>כן</td>
+                  <td>קול הדמות מקודד כטקסט נקי (אותו שמע גולמי <code lang="en" dir="ltr">PCM_S16LE</code> בלי כותרת WAV).</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">sampleRateHz</code></th>
+                  <td>מספר שלם</td>
+                  <td>כן</td>
+                  <td>קצב הדגימה של השמע החוזר (ברירת המחדל הנעולה: <code lang="en" dir="ltr">16000</code>).</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">animationTriggerId</code></th>
+                  <td>טקסט</td>
+                  <td>כן</td>
+                  <td>הפקודה לאנימציית הגוף וההבעה של הדמות (מתוך הרשימה הסגורה למטה).</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">lipSyncFrames</code></th>
+                  <td>רשימה</td>
+                  <td>כן (יכולה להיות ריקה)</td>
+                  <td>ציוני דרך לתנועות השפתיים לאורך הזמן. אם הרשימה ריקה (<code lang="en" dir="ltr">[]</code>), Unity מניעה את הפה לפי עוצמת הקול.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <details class="soft-disclosure">
+            <summary>רוצה לראות איך נראית חבילה אמיתית כזו מאחורי הקלעים?</summary>
+            <figure>
+              <figcaption id="fig-unity-packet-json">דוגמה להודעת JSON שחוזרת מצוות 5 אל Unity:</figcaption>
+              <pre role="region" aria-labelledby="fig-unity-packet-json" tabindex="0"><code lang="en" dir="ltr">{
+  "sessionId": "session-child-402",
+  "turnId": "7f3c8b1e-2d1a-4b64-9a21-0c5a9b1e4410",
+  "audioBase64": "AAAAAP//AQABAP//AgD+/w==",
+  "sampleRateHz": 16000,
+  "animationTriggerId": "talk_warm",
+  "lipSyncFrames": [
+    { "timestampMs": 0, "viseme": "sil", "weight": 0.0 },
+    { "timestampMs": 60, "viseme": "aa", "weight": 0.82 },
+    { "timestampMs": 140, "viseme": "mbp", "weight": 0.65 }
+  ]
+}</code></pre>
+            </figure>
+          </details>
+        </div>
+      </section>
+
+      <!-- Section 4: Animations & Control -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 4 • תנועות הדמות ואיתותי בקרה</span>
+          <h2>בנק האנימציות המוסכם ואותות החיים של החיבור</h2>
+          <p class="text-secondary">
+            כדי שצוות 3 (AI), צוות 4 (Unity) וצוות 5 ידברו בדיוק באותה שפה, הגדרנו מראש 10 מזהי אנימציה קבועים.
+            אם אי-פעם יגיע שם לא מוכר, Unity לא תקרוס אלא תבחר מיד בברירת המחדל הרכה (<code lang="en" dir="ltr">talk_warm</code> בזמן דיבור או <code lang="en" dir="ltr">idle</code> במנוחה).
+          </p>
+
+          <div tabindex="0" role="region" aria-labelledby="tbl-caption-anim" class="table-wrapper">
+            <table class="data-table table-anim">
+              <caption id="tbl-caption-anim" class="table-caption">בנק מזהי האנימציה הנעול לגרסה 1.0</caption>
+              <thead>
+                <tr>
+                  <th scope="col">מזהה אנימציה</th>
+                  <th scope="col">מה הדמות עושה</th>
+                  <th scope="col">מתי משתמשים בזה</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">idle</code></th>
+                  <td>עמידה נינוחה ונשימה רגועה</td>
+                  <td>כשאין כרגע דיבור פעיל</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">listen</code></th>
+                  <td>הטיית ראש קשובה ומבט פתוח</td>
+                  <td>בזמן שהילד מדבר אליה</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">think</code></th>
+                  <td>מבט מהורהר עדין</td>
+                  <td>במעבר קצר או מחשבה לפני תשובה</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">wave</code></th>
+                  <td>נפנוף יד חם לשלום</td>
+                  <td>פתיחת מפגש או פרידה בסיום</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">talk_warm</code></th>
+                  <td>דיבור עם תנועות ידיים חמות (ברירת המחדל)</td>
+                  <td>רוב התשובות הרגועות והאמפתיות</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">talk_happy</code></th>
+                  <td>דיבור שמח וחייכני</td>
+                  <td>התלהבות, חיזוק חיובי או סיפור משמח</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">talk_curious</code></th>
+                  <td>דיבור סקרן ומזמין</td>
+                  <td>כשהדמות שואלת שאלת המשך עדינה</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">talk_calm</code></th>
+                  <td>תנועות איטיות ומרגיעות</td>
+                  <td>כשהילד מוצף, עצוב או לחוץ</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">clap</code></th>
+                  <td>מחיאת כף מעודדת ועדינה</td>
+                  <td>ציון הצלחה או אומץ של הילד</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">hug_gesture</code></th>
+                  <td>מחווה פתוחה ומנחמת בזרועות</td>
+                  <td>רגעים של קושי רגשי הזקוקים לחיבוק מרחוק</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="divider"></div>
+
+          <h3>הודעות בקרה קצרות (<code lang="en" dir="ltr">UnityControlMessage</code>)</h3>
+          <p class="text-secondary">
+            בנוסף לשמע ולתשובות הדיבור, שני הצדדים יכולים להחליף הודעות קצרות לשמירה על חיבור בריא — כמו סימון תחילת שיחה, בדיקת דופק שקטה או עצירה כשהילד מתפרץ לדבר:
+          </p>
+
+          <div tabindex="0" role="region" aria-labelledby="tbl-caption-ctrl" class="table-wrapper">
+            <table class="data-table table-ctrl">
+              <caption id="tbl-caption-ctrl" class="table-caption">סוגי הודעות הבקרה המוסכמות</caption>
+              <thead>
+                <tr>
+                  <th scope="col">סוג (<code lang="en" dir="ltr">type</code>)</th>
+                  <th scope="col">מי שולח</th>
+                  <th scope="col">מה המשמעות</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">session_start</code></th>
+                  <td>Unity → צוות 5</td>
+                  <td>המיקרופון של הילד מוכן והשיחה מתחילה.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">session_end</code></th>
+                  <td>Unity → צוות 5</td>
+                  <td>השיחה הסתיימה בצורה מסודרת ואפשר לנקות זיכרון.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">ping</code> / <code lang="en" dir="ltr">pong</code></th>
+                  <td>דו-כיווני</td>
+                  <td>בדיקת דופק כל 15–30 שניות כדי שהחיבור לא יתנתק בשקט.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">barge_in</code></th>
+                  <td>Unity → צוות 5</td>
+                  <td>הילד התחיל לדבר בזמן שהדמות עוד ענתה — עוצרים ומקשיבים לו.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">error</code></th>
+                  <td>צוות 5 → Unity</td>
+                  <td>הודעת אזהרה רכה במקרה שנשלח שמע בפורמט לא תקין.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 5: Handoff to Team 4 -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-sage">חלק 5 • העברה לצוות 4 (Unity)</span>
+          <h2>מה מעבירים לסוכן של צוות 4 ומה כדאי לאשר מולם?</h2>
+          <div class="grid-2 diag-wrap">
+            <div class="sub-card-light">
+              <h3>קבצים להעברה לסוכן הקוד של צוות 4</h3>
+              <ul>
+                <li>מפרט מלא + קוד C# מוכן: <a href="./contract-3-unity.md"><code lang="en" dir="ltr">contract-3-unity.md</code></a></li>
+                <li>סכמת חבילת התגובה: <a href="./schemas/unity-response-packet.schema.json"><code lang="en" dir="ltr">unity-response-packet.schema.json</code></a></li>
+                <li>סכמת הודעות הבקרה: <a href="./schemas/unity-control-message.schema.json"><code lang="en" dir="ltr">unity-control-message.schema.json</code></a></li>
+              </ul>
+            </div>
+            <div class="sub-card-light">
+              <h3>3 בדיקות קצרות לסגירה עם צוות 4</h3>
+              <ol>
+                <li>שה-Animator ב-Unity מכיל בדיוק את 10 שמות הטריגרים מהרשימה.</li>
+                <li>שהקלטת המיקרופון מומרת ל-<code lang="en" dir="ltr">PCM_S16LE</code> ב-16kHz מונו בלי כותרת WAV.</li>
+                <li>שקיים מנגנון גיבוי לתנועת פה מעוצמת השמע (<code lang="en" dir="ltr">RMS</code>) כשהמערך <code lang="en" dir="ltr">lipSyncFrames</code> מגיע ריק.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="doc-footer">
+      צוות 5 — Real-Time Voice &amp; Animation Orchestrator • חוזה 3 נעול לשלב 1 (<code lang="en" dir="ltr">v1.0.0</code>)
+    </footer>
+
+  </div>
+</body>
+</html>

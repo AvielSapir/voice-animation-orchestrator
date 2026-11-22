@@ -1,10 +1,14 @@
 package com.team5.voiceorchestrator.contracts;
 
 /**
- * Contract 4 request payload sent from Team 5 Orchestrator to Team 3's AI engine.
+ * Contract 4 (v1.0.0 - LOCKED) request payload sent from Team 5 Orchestrator to Team 3's AI
+ * conversation service via {@code POST /api/v1/turn} (UTF-8 JSON).
  *
- * @param sessionId  active child session identifier
- * @param transcript transcribed speech text from the child
+ * <p>{@code sessionId} binds the turn to Team 3's active session context (character persona,
+ * patient background, session opening goals, conversation history, and therapist Live Steering).
+ *
+ * @param sessionId  active child session identifier (non-blank)
+ * @param transcript transcribed Hebrew speech text from the child (non-blank UTF-8)
  */
 public record AiTurnRequest(
         String sessionId,
