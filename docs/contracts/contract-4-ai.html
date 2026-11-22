@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>חוזה 4 — תקשורת בין מתזמר הקול (צוות 5) למנוע השיחה החכם (צוות 3)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Varela+Round&display=swap');
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      direction: rtl;
+      text-align: right;
+      background-color: #FAF7F0;
+      color: #1F2421;
+      font-family: "Assistant", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 17.5px;
+      font-weight: 400;
+      line-height: 1.82;
+    }
+
+    .doc-container {
+      max-width: 1180px;
+      width: 94%;
+      margin: 0 auto;
+      padding: 44px 28px 84px;
+    }
+
+    @media (max-width: 680px) {
+      .doc-container {
+        width: 100%;
+        padding: 24px 16px 60px;
+      }
+    }
+
+    h1, h2, h3 {
+      font-family: "Varela Round", "Assistant", sans-serif;
+      font-weight: 400;
+      color: #1F2421;
+      margin-top: 0;
+    }
+
+    h1 { font-size: 2rem; line-height: 1.34; margin-bottom: 14px; }
+    h2 { font-size: 1.48rem; line-height: 1.38; margin-bottom: 12px; }
+    h3 { font-size: 1.12rem; line-height: 1.45; margin-bottom: 8px; }
+
+    p {
+      margin: 0 0 16px 0;
+      color: #1F2421;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    .text-secondary { color: #434C46; }
+    .text-muted { color: #646E68; font-size: 0.94rem; }
+    .lead-subtitle { color: #434C46; font-size: 1.04rem; margin-bottom: 18px; }
+
+    ul, ol {
+      margin: 0 0 16px 0;
+      padding-right: 22px;
+      padding-left: 0;
+    }
+
+    li { margin-bottom: 8px; color: #1F2421; }
+    li:last-child { margin-bottom: 0; }
+
+    code {
+      font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.85em;
+      background-color: #E4DFD2;
+      color: #1F2421;
+      border: 1px solid #C9C2B2;
+      padding: 1px 7px;
+      border-radius: 6px;
+      direction: ltr;
+      unicode-bidi: isolate;
+      display: inline-block;
+      max-width: 100%;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    figure {
+      margin: 16px 0 0 0;
+    }
+
+    figcaption {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #434C46;
+      margin-bottom: 8px;
+    }
+
+    pre {
+      margin: 0;
+      font-family: Consolas, ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.86rem;
+      line-height: 1.65;
+      background-color: #F6F4EC;
+      color: #1F2421;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 16px 20px;
+      direction: ltr;
+      text-align: left;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+
+    pre > code {
+      background: transparent;
+      border: none;
+      padding: 0;
+      border-radius: 0;
+      display: block;
+      font-size: inherit;
+      white-space: pre;
+      word-break: normal;
+    }
+
+    a {
+      color: #234235;
+      font-weight: 600;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 3px;
+    }
+
+    a:hover {
+      color: #173025;
+    }
+
+    section.chapter, header.hero-chapter { margin-bottom: 38px; }
+
+    .section-card, .header-card {
+      background-color: #EFECE3;
+      border: 1px solid #D8D2C5;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 1px 3px rgba(25, 30, 26, 0.04);
+    }
+
+    @media (max-width: 680px) {
+      .section-card, .header-card { padding: 20px 18px; }
+    }
+
+    .sub-card, .callout {
+      background-color: #E4DFD2;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+
+    .sub-card-light {
+      background-color: #F6F4EC;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+
+    .diag-wrap { margin-top: 20px; margin-bottom: 20px; }
+
+    .divider {
+      height: 1px;
+      background-color: #D8D2C5;
+      margin: 24px 0;
+      width: 100%;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 3px 11px;
+      border-radius: 999px;
+      border: 1px solid #C9C2B2;
+      margin-bottom: 10px;
+      white-space: nowrap;
+    }
+
+    .tag-sage { background-color: #D6E3DC; color: #234235; border-color: #AFC8BA; }
+    .tag-slate { background-color: #D9E2E6; color: #263B44; border-color: #B7C6CD; }
+    .tag-ochre { background-color: #EAE0C8; color: #523F1B; border-color: #D1C2A0; }
+    .tag-clay { background-color: #EBD9D0; color: #5A3222; border-color: #D4B8AA; }
+    .tag-neutral { background-color: #E4DFD2; color: #434C46; border-color: #C9C2B2; }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .meta-pill {
+      background-color: #E4DFD2;
+      border: 1px solid #C9C2B2;
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 0.88rem;
+      color: #434C46;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-3 { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    @media (max-width: 760px) {
+      .grid-2 { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    /* Gentle Flow Diagram */
+    .flow-box {
+      background-color: #F6F4EC;
+      border: 1px solid #C9C2B2;
+      border-radius: 12px;
+      padding: 22px 24px;
+    }
+
+    .flow-lane-title {
+      font-family: "Varela Round", "Assistant", sans-serif;
+      font-size: 1.05rem;
+      color: #2D5242;
+      margin-bottom: 14px;
+    }
+
+    .flow-row-3 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr) 36px minmax(0, 1fr);
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    @media (max-width: 820px) {
+      .flow-row-3 {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+      .flow-row-3 .flow-arrow-cell {
+        margin: 0 auto;
+        transform: rotate(-90deg);
+      }
+    }
+
+    .flow-arrow-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #2D5242;
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .flow-node {
+      background-color: #EFECE3;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .flow-node.highlight {
+      background-color: #D6E3DC;
+      border: 1.5px solid #2D5242;
+      color: #173025;
+    }
+
+    .flow-data-label {
+      margin-top: auto;
+      padding-top: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #2D5242;
+    }
+
+    /* Native Disclosures */
+    details.soft-disclosure {
+      margin-top: 18px;
+      background-color: #F6F4EC;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      padding: 12px 18px;
+    }
+
+    details.soft-disclosure > summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #234235;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    details.soft-disclosure > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.soft-disclosure > summary::before {
+      content: "◀";
+      font-size: 0.78em;
+      color: #2D5242;
+      transition: transform 0.18s ease;
+    }
+
+    details.soft-disclosure[open] > summary::before {
+      transform: rotate(-90deg);
+    }
+
+    details.soft-disclosure[open] > summary {
+      margin-bottom: 10px;
+    }
+
+    /* Responsive Tables (per modern-web-guidance responsive-table) */
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      max-block-size: min(560px, 80vh);
+      container-type: inline-size;
+      margin-top: 16px;
+      border: 1px solid #C9C2B2;
+      border-radius: 10px;
+      background-color: #F6F4EC;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background-color: #F6F4EC;
+    }
+
+    .table-caption {
+      caption-side: top;
+      text-align: right;
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #434C46;
+      background-color: #EFECE3;
+      border-bottom: 1px solid #C9C2B2;
+    }
+
+    .data-table th, .data-table td {
+      border-bottom: 1px solid #D8D2C5;
+      border-inline-end: 1px solid #D8D2C5;
+      padding: 12px 15px;
+      text-align: right;
+      vertical-align: top;
+      font-size: 0.95rem;
+    }
+
+    .data-table tr > *:last-child {
+      border-inline-end: none;
+    }
+
+    .data-table tbody tr:last-child > * {
+      border-bottom: none;
+    }
+
+    .data-table thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 2;
+    }
+
+    .data-table thead th {
+      background-color: #E4DFD2;
+      color: #1F2421;
+      font-weight: 700;
+      border-bottom: 1px solid #C9C2B2;
+    }
+
+    .data-table tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 1;
+      background-color: #EFECE3;
+      color: #1F2421;
+      font-weight: 600;
+    }
+
+    .table-req {
+      --label-2: "סוג";
+      --label-3: "חובה?";
+      --label-4: "הסבר פשוט";
+    }
+
+    .table-resp {
+      --label-2: "סוג";
+      --label-3: "כלל חשוב";
+      --label-4: "הסבר פשוט";
+    }
+
+    .table-tts {
+      --label-2: "ערכים מותרים";
+      --label-3: "ברירת מחדל";
+      --label-4: "הסבר פשוט";
+    }
+
+    @container (width < 600px) {
+      .data-table,
+      .data-table thead,
+      .data-table tbody,
+      .data-table tr,
+      .data-table th,
+      .data-table td {
+        display: block;
+      }
+
+      .data-table thead {
+        display: none;
+      }
+
+      .data-table tr {
+        margin: 12px;
+        border: 1px solid #C9C2B2;
+        border-radius: 8px;
+        background-color: #FAF7F0;
+        overflow: hidden;
+      }
+
+      .data-table th, .data-table td {
+        border-inline-end: none;
+        border-bottom: 1px solid #E4DFD2;
+      }
+
+      .data-table tbody th {
+        position: sticky;
+        inset-block-start: 0;
+        inset-inline-start: auto;
+        z-index: 2;
+        background-color: #E4DFD2;
+      }
+
+      .data-table td:nth-child(2)::before {
+        content: var(--label-2) ": ";
+        font-weight: 700;
+        color: #434C46;
+      }
+
+      .data-table td:nth-child(3)::before {
+        content: var(--label-3) ": ";
+        font-weight: 700;
+        color: #434C46;
+      }
+
+      .data-table td:nth-child(4)::before {
+        content: var(--label-4) ": ";
+        font-weight: 700;
+        color: #434C46;
+      }
+    }
+
+    .doc-footer {
+      text-align: center;
+      color: #646E68;
+      font-size: 0.92rem;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-container">
+
+    <header class="hero-chapter">
+      <div class="header-card">
+        <span class="tag tag-sage">חוזה 4 • גרסה 1.0 • נעול לשלב 1</span>
+        <h1>חוזה 4: התקשורת בין מתזמר הקול (צוות 5) למנוע השיחה החכם (צוות 3)</h1>
+        <p class="lead-subtitle">
+          הסבר פשוט ורך על איך משפט מתומלל של הילד עובר אל "המוח" של הדמות בצוות 3, ואיך חוזרת תשובה טיפולית מדויקת הכוללת מילים, רגש ותנועה.
+        </p>
+        <p>
+          צוות 5 אחראי על הקול, הקצב והסנכרון — אבל הוא לא ממציא את התוכן הטיפולי בעצמו. ברגע שצוות 5 הופך את דיבור הילד למשפט כתוב בעברית,
+          הוא פונה אל <strong>צוות 3 (AI Conversation Service)</strong> ומבקש מהדמות להגיב. צוות 3 מחזיר תשובה מובנית שמאפשרת לנו להשמיע אותה בקול חם ולהניע את הדמות בצורה טבעית.
+        </p>
+        <div class="meta-row">
+          <span class="meta-pill">צדדים: צוות 5 (שולח הבקשה) ↔ צוות 3 (מנוע השיחה)</span>
+          <span class="meta-pill">נקודת קצה: <code lang="en" dir="ltr">POST /api/v1/turn</code></span>
+          <span class="meta-pill">מסמך טכני לסוכן: <a href="./contract-4-ai.md"><code lang="en" dir="ltr">contract-4-ai.md</code></a></span>
+        </div>
+      </div>
+    </header>
+
+    <main>
+
+      <!-- Section 1: Big Picture Flow -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 1 • מסלול הבקשה והתשובה</span>
+          <h2>איך מתבצע סיבוב חשיבה אחד?</h2>
+          <p class="text-secondary">
+            בכל פעם שהילד מסיים משפט, צוות 5 מעביר בקשה קצרה ונקייה, וצוות 3 מחזיר את שלושת המרכיבים שמניעים את השמע והדמות (מימין לשמאל):
+          </p>
+
+          <div class="diag-wrap flow-box">
+            <div class="flow-lane-title">קריאת <code lang="en" dir="ltr">POST /api/v1/turn</code> בקידוד UTF-8 מלא</div>
+            <div class="flow-row-3">
+              <div class="flow-node">
+                <span class="tag tag-slate">1. קלט מצוות 5</span>
+                <h3>שליחת משפט הילד</h3>
+                <p class="text-secondary">צוות 5 שולח רק את מזהה הסשן ואת המשפט המתומלל בעברית — בלי להטריד את עצמו בפרומפטים או ברקע הטיפולי.</p>
+                <div class="flow-data-label"><code lang="en" dir="ltr">AiTurnRequest</code></div>
+              </div>
+              <div class="flow-arrow-cell" aria-hidden="true">←</div>
+              <div class="flow-node highlight">
+                <span class="tag tag-sage">2. החשיבה אצל צוות 3</span>
+                <h3>הרכבת תשובה מותאמת אישית</h3>
+                <p class="text-secondary">צוות 3 משלב את אישיות הדמות, רקע המטופל, רצף השיחה, הנחיות המטפל והגנות הבטיחות.</p>
+                <div class="flow-data-label">יעד מהירות: עד 1.5 שניות</div>
+              </div>
+              <div class="flow-arrow-cell" aria-hidden="true">←</div>
+              <div class="flow-node">
+                <span class="tag tag-ochre">3. פלט מובנה חזרה</span>
+                <h3>טקסט + אינטונציה + אנימציה</h3>
+                <p class="text-secondary">צוות 3 מחזיר בדיוק מה להגיד, באיזה טון רגשי לדבר, ואיזו מחוות גוף מתאימה למשפט.</p>
+                <div class="flow-data-label"><code lang="en" dir="ltr">AiTurnResponse</code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Request -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 2 • הבקשה שאנחנו שולחים לצוות 3</span>
+          <h2>מה יש בתוך <code lang="en" dir="ltr">AiTurnRequest</code>?</h2>
+          <p class="text-secondary">
+            הבקשה מצוות 5 לצוות 3 שומרת על מינימליזם בכוונה כדי לשמור על מהירות ועל הפרדת תפקידים נקייה:
+          </p>
+
+          <div tabindex="0" role="region" aria-labelledby="tbl-caption-req" class="table-wrapper">
+            <table class="data-table table-req">
+              <caption id="tbl-caption-req" class="table-caption">שדות הבקשה לצוות 3 (<code lang="en" dir="ltr">AiTurnRequest</code>)</caption>
+              <thead>
+                <tr>
+                  <th scope="col">שדה</th>
+                  <th scope="col">סוג</th>
+                  <th scope="col">חובה?</th>
+                  <th scope="col">הסבר פשוט</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">sessionId</code></th>
+                  <td>טקסט</td>
+                  <td>כן</td>
+                  <td>מזהה הסשן של הילד. לפי המזהה הזה צוות 3 שולף את ההקשר המלא של המפגש.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">transcript</code></th>
+                  <td>טקסט (UTF-8)</td>
+                  <td>כן</td>
+                  <td>מה שהילד אמר עכשיו בקול, לאחר שהומר לעברית על ידי מנוע התמלול.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <details class="soft-disclosure">
+            <summary>רוצה לראות דוגמה לבקשה כזו?</summary>
+            <figure>
+              <figcaption id="fig-ai-req-json">דוגמה לבקשת JSON שנשלחת לצוות 3:</figcaption>
+              <pre role="region" aria-labelledby="fig-ai-req-json" tabindex="0"><code lang="en" dir="ltr">{
+  "sessionId": "session-child-402",
+  "transcript": "היום היה לי קצת קשה בהפסקה כי אף אחד לא רצה לשחק איתי"
+}</code></pre>
+            </figure>
+          </details>
+        </div>
+      </section>
+
+      <!-- Section 3: Response -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 3 • התשובה שצוות 3 מחזיר לנו</span>
+          <h2>שלושה חלקים שמרכיבים תגובה חיה (<code lang="en" dir="ltr">AiTurnResponse</code>)</h2>
+          <p class="text-secondary">
+            כדי שמנוע הקול שלנו יידע איך להישמע אנושי וכדי שהדמות ב-Unity תגיב נכון בגוף, צוות 3 מחזיר תשובה קשיחה ומסודרת — לא סתם פסקת טקסט חופשית:
+          </p>
+
+          <div tabindex="0" role="region" aria-labelledby="tbl-caption-resp" class="table-wrapper">
+            <table class="data-table table-resp">
+              <caption id="tbl-caption-resp" class="table-caption">שדות התשובה מצוות 3 (<code lang="en" dir="ltr">AiTurnResponse</code>)</caption>
+              <thead>
+                <tr>
+                  <th scope="col">שדה</th>
+                  <th scope="col">סוג</th>
+                  <th scope="col">כלל חשוב</th>
+                  <th scope="col">הסבר פשוט</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">replyText</code></th>
+                  <td>טקסט (UTF-8)</td>
+                  <td>דיבור נקי בלבד — בלי כוכביות, סמיילים או הוראות במה</td>
+                  <td>המשפט המילולי שהדמות תגיד בקול רם לילד. כל סימן עיצוב מיותר עלול להישמע מוזר בהקראה.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">ttsDirectives</code></th>
+                  <td>מפתחות וערכי טקסט</td>
+                  <td>מפה שטוחה של מחרוזות (ללא ערכי <code lang="en" dir="ltr">null</code>)</td>
+                  <td>הנחיות הרגש, הקצב והטון עבור מנוע הדיבור שלנו (פירוט בטבלה הבאה).</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">animationTriggerId</code></th>
+                  <td>טקסט</td>
+                  <td>מתוך 10 המזהים המוסכמים בלבד</td>
+                  <td>התנועה או ההבעה שתלווה את המשפט (אם חסר או לא מוכר, צוות 5 מחליף ל-<code lang="en" dir="ltr">talk_warm</code>).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <details class="soft-disclosure">
+            <summary>רוצה לראות דוגמה לתשובה מלאה מצוות 3?</summary>
+            <figure>
+              <figcaption id="fig-ai-resp-json">דוגמה לתשובת JSON מצוות 3:</figcaption>
+              <pre role="region" aria-labelledby="fig-ai-resp-json" tabindex="0"><code lang="en" dir="ltr">{
+  "replyText": "אני שומע שזה היה ממש לא נעים להישאר לבד בהפסקה. רוצה לספר לי מה הרגשת באותו רגע?",
+  "ttsDirectives": {
+    "emotion": "empathetic",
+    "pace": "slow",
+    "pitch": "normal",
+    "style": "soothing"
+  },
+  "animationTriggerId": "talk_warm"
+}</code></pre>
+            </figure>
+          </details>
+        </div>
+      </section>
+
+      <!-- Section 4: TTS Directives -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 4 • אינטונציה רגשית ובנק האנימציות</span>
+          <h2>איך צוות 3 מכוון את הטון של הדמות?</h2>
+          <p class="text-secondary">
+            בשיחה טיפולית עם ילד, <em>איך</em> אומרים את המשפט חשוב לא פחות ממה שאומרים. המילון הבא מגדיר את ארבעת צירי הטון שמוסכמים בין הצוותים:
+          </p>
+
+          <div tabindex="0" role="region" aria-labelledby="tbl-caption-tts" class="table-wrapper">
+            <table class="data-table table-tts">
+              <caption id="tbl-caption-tts" class="table-caption">מפתחות מוסכמים בתוך <code lang="en" dir="ltr">ttsDirectives</code></caption>
+              <thead>
+                <tr>
+                  <th scope="col">מפתח</th>
+                  <th scope="col">ערכים מותרים</th>
+                  <th scope="col">ברירת מחדל</th>
+                  <th scope="col">הסבר פשוט</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">emotion</code></th>
+                  <td><code lang="en" dir="ltr">warm</code>, <code lang="en" dir="ltr">empathetic</code>, <code lang="en" dir="ltr">happy</code>, <code lang="en" dir="ltr">excited</code>, <code lang="en" dir="ltr">curious</code>, <code lang="en" dir="ltr">calm</code>, <code lang="en" dir="ltr">gentle</code>, <code lang="en" dir="ltr">hesitant</code></td>
+                  <td><code lang="en" dir="ltr">warm</code></td>
+                  <td>הגוון הרגשי של הקול — מחם ואמפתי ועד סקרן או נלהב.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">pace</code></th>
+                  <td><code lang="en" dir="ltr">slow</code>, <code lang="en" dir="ltr">normal</code>, <code lang="en" dir="ltr">fast</code></td>
+                  <td><code lang="en" dir="ltr">normal</code></td>
+                  <td>מהירות הדיבור — איטית יותר להרגעה, רגילה לשיחה שוטפת.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">pitch</code></th>
+                  <td><code lang="en" dir="ltr">low</code>, <code lang="en" dir="ltr">normal</code>, <code lang="en" dir="ltr">high</code></td>
+                  <td><code lang="en" dir="ltr">normal</code></td>
+                  <td>גובה הטון של הקול בהתאמה למצב הרוח.</td>
+                </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">style</code></th>
+                  <td><code lang="en" dir="ltr">conversational</code>, <code lang="en" dir="ltr">whisper</code>, <code lang="en" dir="ltr">playful</code>, <code lang="en" dir="ltr">soothing</code></td>
+                  <td><code lang="en" dir="ltr">conversational</code></td>
+                  <td>סגנון ההגשה — משוחח בטבעיות, שובב, מרגיע או לוחש בעדינות.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout diag-wrap">
+            <h3>רשימת האנימציות הזהה גם לצוות 3 וגם לצוות 4</h3>
+            <p class="text-secondary">
+              צוות 3 בוחר עבור <code lang="en" dir="ltr">animationTriggerId</code> אך ורק מתוך 10 האפשרויות המשותפות:
+              <code lang="en" dir="ltr">idle</code>, <code lang="en" dir="ltr">listen</code>, <code lang="en" dir="ltr">think</code>, <code lang="en" dir="ltr">wave</code>,
+              <code lang="en" dir="ltr">talk_warm</code>, <code lang="en" dir="ltr">talk_happy</code>, <code lang="en" dir="ltr">talk_curious</code>, <code lang="en" dir="ltr">talk_calm</code>,
+              <code lang="en" dir="ltr">clap</code>, <code lang="en" dir="ltr">hug_gesture</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 5: Safety, Latency & Live Steering -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-neutral">חלק 5 • הגנות, מהירות והכוונת מטפל</span>
+          <h2>איך שומרים על בטיחות ועל שיחה רציפה?</h2>
+          <div class="grid-3 diag-wrap">
+            <div class="sub-card-light">
+              <span class="tag tag-sage">זמני תגובה</span>
+              <h3>קצב דיבור אמיתי</h3>
+              <p class="text-secondary">
+                היעד לתשובת צוות 3 הוא עד <strong>1.5 שניות</strong> כדי שהשיחה תישמע טבעית. לאחר 5 שניות המתנה (<code lang="en" dir="ltr">5000ms</code>), צוות 5 לא מותיר את הילד בשתיקה ועובר לתגובת גיבוי רגועה.
+              </p>
+            </div>
+            <div class="sub-card-light">
+              <span class="tag tag-clay">גיבוי רך בתקלה</span>
+              <h3>המסך לעולם לא קופא</h3>
+              <p class="text-secondary">
+                אם שרת ה-AI לא זמין לרגע או החזיר פלט משובש, הלקוח שלנו בצוות 5 מחזיר אוטומטית משפט מרגיע בעברית בטון עדין עם <code lang="en" dir="ltr">talk_warm</code>, בלי להפיל את הסשן.
+              </p>
+            </div>
+            <div class="sub-card-light">
+              <span class="tag tag-ochre">הנחיות מטפל בזמן אמת</span>
+              <h3>איפה נכנס <code lang="en" dir="ltr">Live Steering</code>?</h3>
+              <p class="text-secondary">
+                המטפל יכול לכוון את הדמות מאחורי הקלעים תוך כדי מפגש. בשלב 1 הנחיות אלו יושבות אצל צוות 3 לפי <code lang="en" dir="ltr">sessionId</code> ונלקחות בחשבון אוטומטית כשהוא מרכיב את התשובה.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 6: Handoff to Team 3 -->
+      <section class="chapter">
+        <div class="section-card">
+          <span class="tag tag-sage">חלק 6 • העברה לצוות 3 (AI)</span>
+          <h2>מה מעבירים לסוכן של צוות 3?</h2>
+          <div class="grid-2 diag-wrap">
+            <div class="sub-card-light">
+              <h3>קבצים להעברה לסוכן הקוד של צוות 3</h3>
+              <ul>
+                <li>מפרט טכני מלא + קודי סטטוס ורשימת בדיקות: <a href="./contract-4-ai.md"><code lang="en" dir="ltr">contract-4-ai.md</code></a></li>
+                <li>סכמת הבקשה הנכנסת: <a href="./schemas/ai-turn-request.schema.json"><code lang="en" dir="ltr">ai-turn-request.schema.json</code></a></li>
+                <li>סכמת הפלט המובנה: <a href="./schemas/ai-turn-response.schema.json"><code lang="en" dir="ltr">ai-turn-response.schema.json</code></a></li>
+              </ul>
+            </div>
+            <div class="sub-card-light">
+              <h3>3 דגשים לסגירה עם צוות 3</h3>
+              <ol>
+                <li>שהפרומפט אוכף Structured Output מחמיר עבור שלושת השדות ב-<code lang="en" dir="ltr">AiTurnResponse</code>.</li>
+                <li>ש-<code lang="en" dir="ltr">replyText</code> נקי לחלוטין מסימני Markdown או אימוג׳ים לפני ההקראה.</li>
+                <li>שסינון הבטיחות (Safety Guardrails) פועל בצוות 3 לפני שהתשובה יוצאת לדרך.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="doc-footer">
+      צוות 5 — Real-Time Voice &amp; Animation Orchestrator • חוזה 4 נעול לשלב 1 (<code lang="en" dir="ltr">v1.0.0</code>)
+    </footer>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://team5.local/contracts/v1/ai-turn-response.schema.json",
+  "title": "AiTurnResponse",
+  "description": "Contract 4 (v1.0.0) structured JSON response returned by Team 3 AI Conversation Service to Team 5 Orchestrator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "replyText",
+    "ttsDirectives",
+    "animationTriggerId"
+  ],
+  "properties": {
+    "replyText": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Plain spoken Hebrew text ready for TTS synthesis (no markdown, bullets, asterisks, emojis, or stage directions)."
+    },
+    "ttsDirectives": {
+      "type": "object",
+      "description": "Flat key-value tone/style directives for TTS synthesis.",
+      "properties": {
+        "emotion": {
+          "type": "string",
+          "enum": [
+            "warm",
+            "empathetic",
+            "happy",
+            "excited",
+            "curious",
+            "calm",
+            "gentle",
+            "hesitant"
+          ],
+          "description": "Emotional coloring for the synthesized voice."
+        },
+        "pace": {
+          "type": "string",
+          "enum": [
+            "slow",
+            "normal",
+            "fast"
+          ],
+          "description": "Speech rate directive."
+        },
+        "pitch": {
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ],
+          "description": "Voice pitch bias."
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "conversational",
+            "whisper",
+            "playful",
+            "soothing"
+          ],
+          "description": "Vocal delivery style."
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "animationTriggerId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Lowercase snake_case animation trigger identifier from the shared catalog (e.g., talk_warm, talk_happy, listen)."
+    }
+  },
+  "examples": [
+    {
+      "replyText": "אני שומע שזה היה ממש לא נעים להישאר לבד בהפסקה. רוצה לספר לי מה הרגשת באותו רגע?",
+      "ttsDirectives": {
+        "emotion": "empathetic",
+        "pace": "slow",
+        "pitch": "normal",
+        "style": "soothing"
+      },
+      "animationTriggerId": "talk_warm"
+    }
+  ]
+}

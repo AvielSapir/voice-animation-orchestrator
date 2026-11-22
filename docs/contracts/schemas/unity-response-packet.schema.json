@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://team5.local/contracts/v1/unity-response-packet.schema.json",
+  "title": "UnityResponsePacket",
+  "description": "Contract 3 (v1.0.0) JSON text frame sent from Team 5 Voice & Animation Orchestrator to Team 4 Unity C# client.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sessionId",
+    "turnId",
+    "audioBase64",
+    "sampleRateHz",
+    "animationTriggerId",
+    "lipSyncFrames"
+  ],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active child therapy session identifier."
+    },
+    "turnId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this conversational turn (UUID string)."
+    },
+    "audioBase64": {
+      "type": "string",
+      "contentEncoding": "base64",
+      "description": "Base64-encoded raw PCM_S16LE mono audio bytes (no WAV/RIFF header)."
+    },
+    "sampleRateHz": {
+      "type": "integer",
+      "minimum": 8000,
+      "default": 16000,
+      "description": "Audio sample rate in Hz (locked v1.0.0 default: 16000)."
+    },
+    "animationTriggerId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Lowercase snake_case character animation trigger identifier from the shared catalog (e.g., talk_warm, idle)."
+    },
+    "lipSyncFrames": {
+      "type": "array",
+      "description": "Optional viseme/amplitude frames aligned to the audio stream; may be empty [] when Unity uses RMS audio fallback.",
+      "items": {
+        "$ref": "#/$defs/LipSyncFrame"
+      }
+    }
+  },
+  "$defs": {
+    "LipSyncFrame": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timestampMs",
+        "viseme",
+        "weight"
+      ],
+      "properties": {
+        "timestampMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Offset from the start of the audio clip in milliseconds."
+        },
+        "viseme": {
+          "type": "string",
+          "minLength": 1,
+          "enum": [
+            "sil",
+            "aa",
+            "ee",
+            "ih",
+            "oh",
+            "ou",
+            "mbp",
+            "fv",
+            "th",
+            "l",
+            "sz"
+          ],
+          "description": "Viseme identifier from the shared lip-sync viseme set."
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Normalized blendshape intensity in [0.0, 1.0]."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "sessionId": "session-child-402",
+      "turnId": "7f3c8b1e-2d1a-4b64-9a21-0c5a9b1e4410",
+      "audioBase64": "AAAAAP//AQABAP//AgD+/w==",
+      "sampleRateHz": 16000,
+      "animationTriggerId": "talk_warm",
+      "lipSyncFrames": [
+        {
+          "timestampMs": 0,
+          "viseme": "sil",
+          "weight": 0.0
+        },
+        {
+          "timestampMs": 60,
+          "viseme": "aa",
+          "weight": 0.82
+        },
+        {
+          "timestampMs": 140,
+          "viseme": "mbp",
+          "weight": 0.65
+        }
+      ]
+    }
+  ]
+}

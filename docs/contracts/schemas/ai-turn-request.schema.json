@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://team5.local/contracts/v1/ai-turn-request.schema.json",
+  "title": "AiTurnRequest",
+  "description": "Contract 4 (v1.0.0) JSON request sent from Team 5 Orchestrator to Team 3 AI Conversation Service (POST /api/v1/turn).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sessionId",
+    "transcript"
+  ],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active child session identifier binding to Team 3's session context (persona, patient card, history, Live Steering)."
+    },
+    "transcript": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Transcribed child speech text in UTF-8 Hebrew."
+    }
+  },
+  "examples": [
+    {
+      "sessionId": "session-child-402",
+      "transcript": "היום היה לי קצת קשה בהפסקה כי אף אחד לא רצה לשחק איתי"
+    }
+  ]
+}
