@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.voiceorchestrator.config.OrchestratorProperties;
 import com.team5.voiceorchestrator.contracts.TherapistControlMessage;
 import com.team5.voiceorchestrator.contracts.TherapistTranscriptEvent;
+import com.team5.voiceorchestrator.orchestration.ConversationOrchestrator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,9 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -22,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +37,7 @@ class TherapistWebSocketHandlerTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private SessionRegistry sessionRegistry;
+    private ConversationOrchestrator orchestrator;
     private AtomicReference<String> capturedSteeringSession;
     private AtomicReference<String> capturedSteeringInstruction;
     private TherapistWebSocketHandler handler;
@@ -40,6 +46,7 @@ class TherapistWebSocketHandlerTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         sessionRegistry = new SessionRegistry();
+        orchestrator = mock(ConversationOrchestrator.class);
         capturedSteeringSession = new AtomicReference<>();
         capturedSteeringInstruction = new AtomicReference<>();
 
@@ -53,6 +60,7 @@ class TherapistWebSocketHandlerTest {
 
         handler = new TherapistWebSocketHandler(
                 sessionRegistry,
+                orchestrator,
                 objectMapper,
                 properties,
                 directExecutor,
@@ -76,17 +84,36 @@ class TherapistWebSocketHandlerTest {
         return session;
     }
 
+    private static String buildJwtWithExp(long expEpochSeconds) {
+        String header = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"alg\":\"HS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+        String payload = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(("{\"sub\":\"therapist-1\",\"exp\":" + expEpochSeconds + "}")
+                        .getBytes(StandardCharsets.UTF_8));
+        return header + "." + payload + ".sig123";
+    }
+
     @Test
-    void rejectsInvalidJwtAndUnauthenticatedSteeringWithPolicyViolation() throws Exception {
+    void rejectsInvalidExpiredJwtAndUnauthenticatedSteeringWithPolicyViolation() throws Exception {
         WebSocketSession badJwtSession = mockSession("t-bad", "ws://localhost:8080/ws/therapist?sessionId=s-1");
         handler.afterConnectionEstablished(badJwtSession);
+        handler.handleTextMessage(badJwtSession, new TextMessage(
+                objectMapper.writeValueAsString(TherapistControlMessage.auth("s-1", "aaa.bbb.ccc", 100L))));
 
-        String badAuth = objectMapper.writeValueAsString(TherapistControlMessage.auth("s-1", "not-a-jwt", 100L));
-        handler.handleTextMessage(badJwtSession, new TextMessage(badAuth));
+        ArgumentCaptor<CloseStatus> badClose = ArgumentCaptor.forClass(CloseStatus.class);
+        verify(badJwtSession).close(badClose.capture());
+        assertThat(badClose.getValue().getCode()).isEqualTo(CloseStatus.POLICY_VIOLATION.getCode());
 
-        ArgumentCaptor<CloseStatus> closeCaptor = ArgumentCaptor.forClass(CloseStatus.class);
-        verify(badJwtSession).close(closeCaptor.capture());
-        assertThat(closeCaptor.getValue().getCode()).isEqualTo(CloseStatus.POLICY_VIOLATION.getCode());
+        WebSocketSession expiredJwtSession = mockSession("t-exp", "ws://localhost:8080/ws/therapist?sessionId=s-exp");
+        handler.afterConnectionEstablished(expiredJwtSession);
+        String expiredToken = buildJwtWithExp(Instant.now().getEpochSecond() - 60);
+        handler.handleTextMessage(expiredJwtSession, new TextMessage(
+                objectMapper.writeValueAsString(TherapistControlMessage.auth("s-exp", expiredToken, 100L))));
+
+        ArgumentCaptor<CloseStatus> expClose = ArgumentCaptor.forClass(CloseStatus.class);
+        verify(expiredJwtSession).close(expClose.capture());
+        assertThat(expClose.getValue().getCode()).isEqualTo(CloseStatus.POLICY_VIOLATION.getCode());
+        assertThat(expClose.getValue().getReason()).contains("Expired");
 
         WebSocketSession unauthSession = mockSession("t-unauth", "ws://localhost:8080/ws/therapist?sessionId=s-2");
         handler.afterConnectionEstablished(unauthSession);
@@ -101,12 +128,13 @@ class TherapistWebSocketHandlerTest {
     }
 
     @Test
-    void authenticatesJwtRecordsSteeringAndPushesTranscriptEvents() throws Exception {
+    void authenticatesJwtForwardsSteeringToOrchestratorAndPushesAllTranscriptSpeakers() throws Exception {
         WebSocketSession session = mockSession("t-ok", "ws://localhost:8080/ws/therapist?sessionId=child-707");
         handler.afterConnectionEstablished(session);
 
+        String futureJwt = buildJwtWithExp(Instant.now().getEpochSecond() + 3600);
         String authJson = objectMapper.writeValueAsString(
-                TherapistControlMessage.auth("child-707", VALID_JWT, 1000L));
+                TherapistControlMessage.auth("child-707", futureJwt, 1000L));
         handler.handleTextMessage(session, new TextMessage(authJson));
 
         ActiveSession active = sessionRegistry.getSession("child-707").orElseThrow();
@@ -117,27 +145,35 @@ class TherapistWebSocketHandlerTest {
                 TherapistControlMessage.liveSteering("child-707", instruction, 1010L));
         handler.handleTextMessage(session, new TextMessage(steeringJson));
 
+        verify(orchestrator).submitLiveSteering("child-707", instruction);
         assertThat(capturedSteeringSession.get()).isEqualTo("child-707");
         assertThat(capturedSteeringInstruction.get()).isEqualTo(instruction);
         assertThat(active.pollLiveSteering()).isEqualTo(instruction);
 
         TherapistTranscriptEvent childEvent = TherapistTranscriptEvent.childUtterance(
                 "child-707", "turn-1", "קצת עצוב לי היום", 1020L);
-        assertThat(handler.sendTranscriptEvent("child-707", childEvent).join()).isTrue();
-
         TherapistTranscriptEvent characterEvent = TherapistTranscriptEvent.characterReply(
                 "child-707", "turn-1", "אני כאן איתך!", "talk_warm", 1030L);
+        TherapistTranscriptEvent systemEvent = new TherapistTranscriptEvent(
+                "child-707", null, TherapistTranscriptEvent.SPEAKER_SYSTEM, "השיחה התחילה", null, 1040L);
+
+        assertThat(handler.sendTranscriptEvent("child-707", childEvent).join()).isTrue();
         assertThat(handler.sendTranscriptEvent("child-707", characterEvent).join()).isTrue();
+        assertThat(handler.sendTranscriptEvent("child-707", systemEvent).join()).isTrue();
+
+        TherapistTranscriptEvent invalidSpeaker = new TherapistTranscriptEvent(
+                "child-707", null, "UNKNOWN", "ignored", null, 1050L);
+        assertThat(handler.sendTranscriptEvent("child-707", invalidSpeaker).join()).isFalse();
 
         ArgumentCaptor<TextMessage> sentCaptor = ArgumentCaptor.forClass(TextMessage.class);
-        verify(session, org.mockito.Mockito.times(2)).sendMessage(sentCaptor.capture());
+        verify(session, times(3)).sendMessage(sentCaptor.capture());
 
-        TherapistTranscriptEvent decodedChild = objectMapper.readValue(
-                sentCaptor.getAllValues().get(0).getPayload(), TherapistTranscriptEvent.class);
-        TherapistTranscriptEvent decodedChar = objectMapper.readValue(
-                sentCaptor.getAllValues().get(1).getPayload(), TherapistTranscriptEvent.class);
-        assertThat(decodedChild).isEqualTo(childEvent);
-        assertThat(decodedChar).isEqualTo(characterEvent);
+        assertThat(objectMapper.readValue(sentCaptor.getAllValues().get(0).getPayload(), TherapistTranscriptEvent.class))
+                .isEqualTo(childEvent);
+        assertThat(objectMapper.readValue(sentCaptor.getAllValues().get(1).getPayload(), TherapistTranscriptEvent.class))
+                .isEqualTo(characterEvent);
+        assertThat(objectMapper.readValue(sentCaptor.getAllValues().get(2).getPayload(), TherapistTranscriptEvent.class))
+                .isEqualTo(systemEvent);
 
         handler.afterConnectionClosed(session, CloseStatus.NORMAL);
         assertThat(sessionRegistry.getSession("child-707")).isEmpty();

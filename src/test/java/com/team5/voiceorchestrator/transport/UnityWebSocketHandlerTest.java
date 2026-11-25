@@ -1,6 +1,7 @@
 package com.team5.voiceorchestrator.transport;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.team5.voiceorchestrator.config.OrchestratorProperties;
 import com.team5.voiceorchestrator.contracts.UnityControlMessage;
 import com.team5.voiceorchestrator.contracts.UnityResponsePacket;
 import com.team5.voiceorchestrator.orchestration.ConversationOrchestrator;
@@ -15,6 +16,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,14 +38,16 @@ class UnityWebSocketHandlerTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private SessionRegistry sessionRegistry;
     private ConversationOrchestrator orchestrator;
+    private OrchestratorProperties properties;
     private UnityWebSocketHandler handler;
 
     @BeforeEach
     void setUp() {
         sessionRegistry = new SessionRegistry();
         orchestrator = mock(ConversationOrchestrator.class);
+        properties = new OrchestratorProperties();
         Executor directExecutor = Runnable::run;
-        handler = new UnityWebSocketHandler(sessionRegistry, orchestrator, objectMapper, directExecutor);
+        handler = new UnityWebSocketHandler(sessionRegistry, orchestrator, objectMapper, properties, directExecutor);
     }
 
     @AfterEach
@@ -131,6 +136,83 @@ class UnityWebSocketHandlerTest {
         assertThat(err.type()).isEqualTo(UnityControlMessage.TYPE_ERROR);
         assertThat(err.sessionId()).isEqualTo("child-404");
         assertThat(err.message()).contains("even byte length");
+    }
+
+    @Test
+    void rejectsWavRiffHeaderAndOversizedAudioFrames() throws Exception {
+        properties.getWebsocket().setMaxBinaryMessageSizeBytes(1280);
+        UnityWebSocketHandler customHandler = new UnityWebSocketHandler(
+                sessionRegistry, orchestrator, objectMapper, properties, Runnable::run);
+
+        WebSocketSession session = mockSession("ws-fmt", "ws://localhost:8080/ws/unity?sessionId=child-fmt", null);
+        customHandler.afterConnectionEstablished(session);
+
+        byte[] wavHeader = new byte[44];
+        System.arraycopy("RIFF".getBytes(StandardCharsets.US_ASCII), 0, wavHeader, 0, 4);
+        System.arraycopy("WAVE".getBytes(StandardCharsets.US_ASCII), 0, wavHeader, 8, 4);
+        customHandler.handleBinaryMessage(session, new BinaryMessage(wavHeader));
+
+        byte[] oversized = new byte[1920];
+        customHandler.handleBinaryMessage(session, new BinaryMessage(oversized));
+
+        verify(orchestrator, never()).handleAudioChunk(any(), any());
+        ArgumentCaptor<TextMessage> sentCaptor = ArgumentCaptor.forClass(TextMessage.class);
+        verify(session, times(2)).sendMessage(sentCaptor.capture());
+
+        UnityControlMessage wavErr = objectMapper.readValue(sentCaptor.getAllValues().get(0).getPayload(), UnityControlMessage.class);
+        UnityControlMessage sizeErr = objectMapper.readValue(sentCaptor.getAllValues().get(1).getPayload(), UnityControlMessage.class);
+        assertThat(wavErr.message()).contains("WAV/RIFF");
+        assertThat(sizeErr.message()).contains("exceeds maximum size");
+    }
+
+    @Test
+    void normalizesCoalescedAndFragmentedPcmFramesToTarget640ByteChunks() {
+        WebSocketSession session = mockSession("ws-norm", "ws://localhost:8080/ws/unity?sessionId=child-norm", null);
+        handler.afterConnectionEstablished(session);
+
+        when(orchestrator.handleAudioChunk(eq("child-norm"), any(byte[].class)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+        byte[] coalesced1280 = new byte[1280];
+        coalesced1280[0] = 1;
+        coalesced1280[640] = 2;
+        handler.handleBinaryMessage(session, new BinaryMessage(coalesced1280));
+
+        byte[] fragA = new byte[320];
+        fragA[0] = 3;
+        byte[] fragB = new byte[320];
+        fragB[0] = 4;
+        handler.handleBinaryMessage(session, new BinaryMessage(fragA));
+        handler.handleBinaryMessage(session, new BinaryMessage(fragB));
+
+        ArgumentCaptor<byte[]> chunkCaptor = ArgumentCaptor.forClass(byte[].class);
+        verify(orchestrator, times(3)).handleAudioChunk(eq("child-norm"), chunkCaptor.capture());
+
+        List<byte[]> forwarded = chunkCaptor.getAllValues();
+        assertThat(forwarded.get(0)).hasSize(640);
+        assertThat(forwarded.get(0)[0]).isEqualTo((byte) 1);
+        assertThat(forwarded.get(1)).hasSize(640);
+        assertThat(forwarded.get(1)[0]).isEqualTo((byte) 2);
+        assertThat(forwarded.get(2)).hasSize(640);
+        assertThat(forwarded.get(2)[0]).isEqualTo((byte) 3);
+        assertThat(forwarded.get(2)[320]).isEqualTo((byte) 4);
+    }
+
+    @Test
+    void normalizesOutboundPacketDefaultsAndDeduplicatesTurnPublish() throws Exception {
+        WebSocketSession session = mockSession("ws-out", "ws://localhost:8080/ws/unity?sessionId=child-out", null);
+        handler.afterConnectionEstablished(session);
+
+        UnityResponsePacket raw = new UnityResponsePacket("child-out", "turn-dup", "AAAA", 0, "  ", List.of());
+        assertThat(handler.publishResponsePacket(raw).join()).isTrue();
+        assertThat(handler.sendTurnPacketOnce("child-out", raw).join()).isFalse();
+
+        ArgumentCaptor<TextMessage> sentCaptor = ArgumentCaptor.forClass(TextMessage.class);
+        verify(session, times(1)).sendMessage(sentCaptor.capture());
+
+        UnityResponsePacket sent = objectMapper.readValue(sentCaptor.getValue().getPayload(), UnityResponsePacket.class);
+        assertThat(sent.sampleRateHz()).isEqualTo(16000);
+        assertThat(sent.animationTriggerId()).isEqualTo(UnityWebSocketHandler.FALLBACK_ANIMATION_TRIGGER);
     }
 
     @Test
