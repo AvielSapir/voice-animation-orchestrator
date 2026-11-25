@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://team5.local/contracts/v1/therapist-transcript-event.schema.json",
+  "title": "TherapistTranscriptEvent",
+  "description": "Contract 2 (v1.0.0) outbound WebSocket event pushed from Team 5 Orchestrator to Team 1 Therapist React UI (/ws/therapist).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sessionId",
+    "speaker",
+    "text",
+    "timestampMs"
+  ],
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active child therapy session identifier."
+    },
+    "turnId": {
+      "type": "string",
+      "description": "Optional turn identifier correlating with the audio/animation turn."
+    },
+    "speaker": {
+      "type": "string",
+      "enum": [
+        "CHILD",
+        "CHARACTER",
+        "SYSTEM"
+      ],
+      "description": "Speaker role for the transcript line."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Transcribed child speech, character reply, or system notice (UTF-8 Hebrew)."
+    },
+    "animationTriggerId": {
+      "type": "string",
+      "description": "Animation trigger chosen for CHARACTER turns."
+    },
+    "timestampMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Server Unix epoch timestamp in milliseconds."
+    }
+  },
+  "examples": [
+    {
+      "sessionId": "session-child-402",
+      "turnId": "turn-001",
+      "speaker": "CHILD",
+      "text": "קצת עצוב לי היום",
+      "timestampMs": 1795352010000
+    },
+    {
+      "sessionId": "session-child-402",
+      "turnId": "turn-001",
+      "speaker": "CHARACTER",
+      "text": "אני כאן איתך, רוצה לספר לי מה קרה?",
+      "animationTriggerId": "talk_warm",
+      "timestampMs": 1795352012500
+    }
+  ]
+}

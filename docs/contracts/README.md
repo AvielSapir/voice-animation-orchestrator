@@ -13,6 +13,7 @@ Each contract is provided in three complementary formats:
 
 | Contract | Parties | Technical Spec (Agent-Ready) | Hebrew Overview (Human) | JSON Schemas | Java DTOs (`contracts/`) |
 | --- | --- | --- | --- | --- | --- |
+| **Contract 2** | Team 1 (Therapist React UI) ↔ Team 5 (Orchestrator) | [`contract-2-therapist.md`](./contract-2-therapist.md) | [`contract-2-therapist.html`](./contract-2-therapist.html) | [`therapist-transcript-event.schema.json`](./schemas/therapist-transcript-event.schema.json)<br>[`therapist-control-message.schema.json`](./schemas/therapist-control-message.schema.json) | `TherapistTranscriptEvent`<br>`TherapistControlMessage` |
 | **Contract 3** | Team 4 (Unity C#) ↔ Team 5 (Orchestrator) | [`contract-3-unity.md`](./contract-3-unity.md) | [`contract-3-unity.html`](./contract-3-unity.html) | [`unity-response-packet.schema.json`](./schemas/unity-response-packet.schema.json)<br>[`unity-control-message.schema.json`](./schemas/unity-control-message.schema.json) | `UnityResponsePacket`<br>`UnityControlMessage` |
 | **Contract 4** | Team 5 (Orchestrator) ↔ Team 3 (AI Engine) | [`contract-4-ai.md`](./contract-4-ai.md) | [`contract-4-ai.html`](./contract-4-ai.html) | [`ai-turn-request.schema.json`](./schemas/ai-turn-request.schema.json)<br>[`ai-turn-response.schema.json`](./schemas/ai-turn-response.schema.json) | `AiTurnRequest`<br>`AiTurnResponse` |
 

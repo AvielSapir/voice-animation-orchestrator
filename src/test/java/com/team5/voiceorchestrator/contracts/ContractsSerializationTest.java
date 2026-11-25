@@ -136,4 +136,54 @@ class ContractsSerializationTest {
         assertThatThrownBy(() -> cleaned.ttsDirectives().put("pitch", "normal"))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
+
+    @Test
+    void aiTurnRequestSupportsOptionalLiveSteering() throws Exception {
+        AiTurnRequest withoutSteering = new AiTurnRequest("session-child-402", "שלום");
+        JsonNode withoutNode = objectMapper.readTree(objectMapper.writeValueAsString(withoutSteering));
+        assertThat(withoutNode.has("liveSteering")).isFalse();
+
+        String steering = "עודד אותו לשתף מה קרה בהפסקה, בטון רגוע";
+        AiTurnRequest withSteering = new AiTurnRequest("session-child-402", "שלום", steering);
+        String json = objectMapper.writeValueAsString(withSteering);
+        AiTurnRequest decoded = objectMapper.readValue(json, AiTurnRequest.class);
+        assertThat(decoded).isEqualTo(withSteering);
+        assertThat(decoded.liveSteering()).isEqualTo(steering);
+    }
+
+    @Test
+    void therapistTranscriptEventRoundTripOmitsNullTriggerForChild() throws Exception {
+        TherapistTranscriptEvent childEvent = TherapistTranscriptEvent.childUtterance(
+                "session-child-402", "turn-001", "קצת עצוב לי היום", 1795352010000L
+        );
+        String childJson = objectMapper.writeValueAsString(childEvent);
+        JsonNode childNode = objectMapper.readTree(childJson);
+        assertThat(childNode.has("animationTriggerId")).isFalse();
+        assertThat(objectMapper.readValue(childJson, TherapistTranscriptEvent.class)).isEqualTo(childEvent);
+
+        TherapistTranscriptEvent characterEvent = TherapistTranscriptEvent.characterReply(
+                "session-child-402", "turn-001", "אני כאן איתך, רוצה לספר לי מה קרה?", "talk_warm", 1795352012500L
+        );
+        String charJson = objectMapper.writeValueAsString(characterEvent);
+        assertThat(objectMapper.readValue(charJson, TherapistTranscriptEvent.class)).isEqualTo(characterEvent);
+    }
+
+    @Test
+    void therapistControlMessageRoundTripForSteeringAndAuth() throws Exception {
+        TherapistControlMessage steering = TherapistControlMessage.liveSteering(
+                "session-child-402", "תעבור לטון מעודד ותשאל על המשחק", 1795352020000L
+        );
+        String steeringJson = objectMapper.writeValueAsString(steering);
+        JsonNode steeringNode = objectMapper.readTree(steeringJson);
+        assertThat(steeringNode.has("token")).isFalse();
+        assertThat(objectMapper.readValue(steeringJson, TherapistControlMessage.class)).isEqualTo(steering);
+
+        TherapistControlMessage auth = TherapistControlMessage.auth(
+                "session-child-402", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test", 1795352000000L
+        );
+        String authJson = objectMapper.writeValueAsString(auth);
+        JsonNode authNode = objectMapper.readTree(authJson);
+        assertThat(authNode.has("instruction")).isFalse();
+        assertThat(objectMapper.readValue(authJson, TherapistControlMessage.class)).isEqualTo(auth);
+    }
 }

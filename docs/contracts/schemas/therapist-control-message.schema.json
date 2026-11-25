@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://team5.local/contracts/v1/therapist-control-message.schema.json",
+  "title": "TherapistControlMessage",
+  "description": "Contract 2 (v1.0.0) inbound WebSocket JSON control message sent from Team 1 Therapist React UI to Team 5 Orchestrator (/ws/therapist).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "sessionId",
+    "timestampMs"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "auth",
+        "live_steering",
+        "session_start",
+        "session_end",
+        "ping",
+        "pong"
+      ],
+      "description": "Control message event type."
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Active child therapy session identifier."
+    },
+    "instruction": {
+      "type": "string",
+      "description": "Covert therapist steering instruction (provided when type is live_steering)."
+    },
+    "token": {
+      "type": "string",
+      "description": "JWT token sent in initial auth message."
+    },
+    "timestampMs": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Client Unix epoch timestamp in milliseconds."
+    }
+  },
+  "examples": [
+    {
+      "type": "auth",
+      "sessionId": "session-child-402",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example",
+      "timestampMs": 1795352000000
+    },
+    {
+      "type": "live_steering",
+      "sessionId": "session-child-402",
+      "instruction": "תעבור לטון מעודד ותשאל על המשחק בהפסקה",
+      "timestampMs": 1795352020000
+    }
+  ]
+}
