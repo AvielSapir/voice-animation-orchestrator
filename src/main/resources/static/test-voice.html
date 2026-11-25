@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בדיקת קול חיה — VAD, STT ו-TTS</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --green: #22c55e;
+            --amber: #f59e0b;
+            --red: #ef4444;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 24px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+        h1 { margin-top: 0; font-size: 1.6rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 20px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h2 { margin-top: 0; font-size: 1.2rem; color: var(--accent); }
+        .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 16px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: var(--accent);
+            color: #0f172a;
+        }
+        button.stop { background: var(--red); color: #fff; }
+        button.secondary { background: var(--border); color: var(--text); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--border);
+        }
+        .badge.listening { background: #1e3a8a; color: #bfdbfe; }
+        .badge.speaking { background: #78350f; color: #fde68a; }
+        .badge.speech_ended { background: #14532d; color: #bbf7d0; }
+        textarea, select, input[type="text"] {
+            width: 100%;
+            background: #0f172a;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        .log {
+            background: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 150px;
+            max-height: 280px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+        }
+        .entry { padding: 8px 0; border-bottom: 1px solid #1e293b; }
+        .entry:last-child { border-bottom: none; }
+        .meta { color: var(--muted); font-size: 0.8rem; }
+        audio { width: 100%; margin-top: 12px; }
+    </style>
+</head>
+<body>
+<div style="max-width: 1100px; margin: 0 auto 16px;">
+    <h1>בדיקת מערכת קול בעברית — Phase 2</h1>
+    <div class="meta">עמוד בדיקה זמני עבור <code>ServerVadDetector</code>, <code>RealSttClient</code> (Groq) ו-<code>RealTtsClient</code> (Cartesia)</div>
+</div>
+
+<div class="grid">
+    <!-- Panel 1: VAD + STT -->
+    <section class="card">
+        <h2>1. בדיקת מיקרופון: VAD + STT</h2>
+        <div class="row">
+            <button id="micBtn">התחל הקלטה</button>
+            <button id="resetBtn" class="secondary">אפס VAD</button>
+            <span id="vadBadge" class="badge">לא פעיל</span>
+        </div>
+        <div class="meta" id="micInfo" style="margin-bottom: 10px;">לחץ על "התחל הקלטה" ודבר בעברית.</div>
+        <div class="log" id="transcriptLog"></div>
+    </section>
+
+    <!-- Panel 2: TTS -->
+    <section class="card">
+        <h2>2. בדיקת הפקת קול: TTS</h2>
+        <div style="margin-bottom: 12px;">
+            <label for="ttsText" class="meta">טקסט בעברית להקראה:</label>
+            <textarea id="ttsText" rows="3">שלום! איזה כיף שדיברת איתי היום. רוצה לספר לי מה שימח אותך?</textarea>
+        </div>
+        <div class="row">
+            <div style="flex: 1; min-width: 160px;">
+                <label for="ttsEmotion" class="meta">טון (אופציונלי):</label>
+                <select id="ttsEmotion">
+                    <option value="warm">warm (חם)</option>
+                    <option value="empathetic">empathetic (אמפתי)</option>
+                    <option value="happy">happy (שמח)</option>
+                    <option value="calm">calm (רגוע)</option>
+                    <option value="curious">curious (סקרן)</option>
+                </select>
+            </div>
+            <button id="ttsBtn" style="margin-top: 18px;">הפק קול</button>
+        </div>
+        <div class="meta" id="ttsStatus"></div>
+        <audio id="ttsAudio" controls></audio>
+    </section>
+</div>
+
+<script>
+    const TARGET_SAMPLE_RATE = 16000;
+    const sessionId = "browser-" + Math.random().toString(36).slice(2, 10);
+
+    const micBtn = document.getElementById("micBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const vadBadge = document.getElementById("vadBadge");
+    const micInfo = document.getElementById("micInfo");
+    const transcriptLog = document.getElementById("transcriptLog");
+
+    let recording = false;
+    let audioCtx = null;
+    let mediaStream = null;
+    let sourceNode = null;
+    let processorNode = null;
+    let sendQueue = Promise.resolve();
+
+    function setVadBadge(state, label) {
+        vadBadge.className = "badge " + (state || "");
+        vadBadge.textContent = label;
+    }
+
+    function downsampleTo16kPcm16(float32Samples, inputSampleRate) {
+        if (inputSampleRate === TARGET_SAMPLE_RATE) {
+            return floatTo16BitPcm(float32Samples);
+        }
+        const ratio = inputSampleRate / TARGET_SAMPLE_RATE;
+        const outLength = Math.floor(float32Samples.length / ratio);
+        const downsampled = new Float32Array(outLength);
+        for (let i = 0; i < outLength; i++) {
+            const start = Math.floor(i * ratio);
+            const end = Math.min(float32Samples.length, Math.floor((i + 1) * ratio));
+            let sum = 0;
+            for (let j = start; j < end; j++) {
+                sum += float32Samples[j];
+            }
+            downsampled[i] = sum / Math.max(1, end - start);
+        }
+        return floatTo16BitPcm(downsampled);
+    }
+
+    function floatTo16BitPcm(samples) {
+        const buffer = new ArrayBuffer(samples.length * 2);
+        const view = new DataView(buffer);
+        for (let i = 0; i < samples.length; i++) {
+            const clamped = Math.max(-1, Math.min(1, samples[i]));
+            const int16 = clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF;
+            view.setInt16(i * 2, int16, true);
+        }
+        return new Uint8Array(buffer);
+    }
+
+    async function sendChunk(pcmBytes) {
+        try {
+            const resp = await fetch("/api/test/vad-chunk?sessionId=" + encodeURIComponent(sessionId), {
+                method: "POST",
+                headers: { "Content-Type": "application/octet-stream" },
+                body: pcmBytes
+            });
+            if (!resp.ok) {
+                micInfo.textContent = "שגיאה בשרת: HTTP " + resp.status;
+                return;
+            }
+            const data = await resp.json();
+            if (data.status === "listening") {
+                setVadBadge("listening", "מקליט (שקט)");
+            } else if (data.status === "speaking") {
+                setVadBadge("speaking", "מדבר...");
+            } else if (data.status === "speech_ended") {
+                setVadBadge("speech_ended", "זוהה סיום דיבור");
+                const entry = document.createElement("div");
+                entry.className = "entry";
+                const text = data.transcript && data.transcript.trim() ? data.transcript : "(לא זוהה טקסט)";
+                entry.innerHTML = `<div><strong>${escapeHtml(text)}</strong></div>
+                    <div class="meta">VAD: ${data.vadLatencyMs ?? 0}ms | STT: ${data.sttLatencyMs ?? 0}ms</div>`;
+                transcriptLog.prepend(entry);
+            }
+        } catch (err) {
+            micInfo.textContent = "שגיאת רשת: " + err.message;
+        }
+    }
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>"']/g, c => ({
+            "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+        }[c]));
+    }
+
+    micBtn.addEventListener("click", async () => {
+        if (!recording) {
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+                });
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                sourceNode = audioCtx.createMediaStreamSource(mediaStream);
+                processorNode = audioCtx.createScriptProcessor(2048, 1, 1);
+
+                processorNode.onaudioprocess = (event) => {
+                    if (!recording) return;
+                    const input = event.inputBuffer.getChannelData(0);
+                    const pcmBytes = downsampleTo16kPcm16(input, audioCtx.sampleRate);
+                    sendQueue = sendQueue.then(() => sendChunk(pcmBytes));
+                };
+
+                sourceNode.connect(processorNode);
+                processorNode.connect(audioCtx.destination);
+                recording = true;
+                micBtn.textContent = "עצור הקלטה";
+                micBtn.classList.add("stop");
+                setVadBadge("listening", "מקליט");
+                micInfo.textContent = `מקליט בקצב ${audioCtx.sampleRate}Hz -> משדר 16kHz PCM (${sessionId})`;
+            } catch (err) {
+                micInfo.textContent = "לא ניתן להפעיל מיקרופון: " + err.message;
+            }
+        } else {
+            recording = false;
+            if (processorNode) processorNode.disconnect();
+            if (sourceNode) sourceNode.disconnect();
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            if (audioCtx) await audioCtx.close();
+            micBtn.textContent = "התחל הקלטה";
+            micBtn.classList.remove("stop");
+            setVadBadge("", "לא פעיל");
+        }
+    });
+
+    resetBtn.addEventListener("click", async () => {
+        await fetch("/api/test/vad-reset?sessionId=" + encodeURIComponent(sessionId), { method: "POST" });
+        setVadBadge("", "אופס");
+    });
+
+    const ttsBtn = document.getElementById("ttsBtn");
+    const ttsText = document.getElementById("ttsText");
+    const ttsEmotion = document.getElementById("ttsEmotion");
+    const ttsStatus = document.getElementById("ttsStatus");
+    const ttsAudio = document.getElementById("ttsAudio");
+    let currentAudioUrl = null;
+
+    ttsBtn.addEventListener("click", async () => {
+        const text = ttsText.value.trim();
+        if (!text) return;
+        ttsBtn.disabled = true;
+        ttsStatus.textContent = "מייצר אודיו...";
+        const started = performance.now();
+
+        try {
+            const resp = await fetch("/api/test/tts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text, emotion: ttsEmotion.value })
+            });
+            if (!resp.ok) {
+                ttsStatus.textContent = "שגיאה בהפקת הקול: HTTP " + resp.status;
+                return;
+            }
+            const blob = await resp.blob();
+            if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+            currentAudioUrl = URL.createObjectURL(blob);
+            ttsAudio.src = currentAudioUrl;
+            await ttsAudio.play().catch(() => {});
+            const elapsed = Math.round(performance.now() - started);
+            ttsStatus.textContent = `הושלם בתוך ${elapsed}ms (${blob.size} bytes WAV)`;
+        } catch (err) {
+            ttsStatus.textContent = "שגיאה: " + err.message;
+        } finally {
+            ttsBtn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>

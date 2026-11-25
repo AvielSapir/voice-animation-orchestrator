@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: voice-animation-orchestrator
+  config:
+    import: optional:file:.env[.properties]
 
 orchestrator:
   websocket:
     endpoint: /ws/unity
+    therapist-endpoint: /ws/therapist
     allowed-origins: "*"
     max-binary-message-size-bytes: 65536
     max-text-message-size-bytes: 16384
@@ -24,15 +27,24 @@ orchestrator:
     base-url: ${AI_ENGINE_BASE_URL:http://localhost:8081}
     turn-endpoint: /api/v1/turn
     timeout-ms: 5000
+    llm-provider: ${LLM_PROVIDER:groq}
+    llm-model: ${LLM_MODEL:qwen/qwen3.8-27b}
+    available-llm-models:
+      - qwen/qwen3.8-27b
+      - openai/gpt-oss-120b
+      - openai/gpt-oss-20b
   stt:
-    provider: ${STT_PROVIDER:default}
-    api-key: ${STT_API_KEY:}
-    language: he-IL
+    provider: ${STT_PROVIDER:groq}
+    model: ${STT_MODEL:whisper-large-v3-turbo}
+    api-key: ${STT_API_KEY:${GROQ_API_KEY:}}
+    language: he
     timeout-ms: 4000
   tts:
-    provider: ${TTS_PROVIDER:default}
-    api-key: ${TTS_API_KEY:}
-    voice-id: ${TTS_VOICE_ID:default}
+    provider: ${TTS_PROVIDER:cartesia}
+    model: ${TTS_MODEL:sonic-3.6}
+    api-key: ${TTS_API_KEY:${CARTESIA_API_KEY:}}
+    voice-id: ${TTS_VOICE_ID:}
+    language: he
     timeout-ms: 4000
   async:
     core-pool-size: 8
