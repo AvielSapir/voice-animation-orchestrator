@@ -3,6 +3,7 @@ package com.team5.voiceorchestrator.transport;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.voiceorchestrator.config.AsyncConfig;
+import com.team5.voiceorchestrator.config.OrchestratorProperties;
 import com.team5.voiceorchestrator.contracts.UnityControlMessage;
 import com.team5.voiceorchestrator.contracts.UnityResponsePacket;
 import com.team5.voiceorchestrator.orchestration.ConversationOrchestrator;
@@ -20,6 +21,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -37,23 +39,37 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
     public static final String ATTR_SESSION_ID = "voiceOrchestrator.sessionId";
     public static final String HEADER_SESSION_ID = "X-Session-Id";
     public static final String QUERY_PARAM_SESSION_ID = "sessionId";
+    public static final String FALLBACK_ANIMATION_TRIGGER = "talk_warm";
 
     private static final Logger log = LoggerFactory.getLogger(UnityWebSocketHandler.class);
 
     private final SessionRegistry sessionRegistry;
     private final ConversationOrchestrator conversationOrchestrator;
     private final ObjectMapper objectMapper;
+    private final OrchestratorProperties properties;
     private final Executor orchestratorExecutor;
+    private final int bytesPerSampleFrame;
+    private final int targetChunkBytes;
+    private final int maxBinaryMessageSizeBytes;
 
     public UnityWebSocketHandler(
             SessionRegistry sessionRegistry,
             ConversationOrchestrator conversationOrchestrator,
             ObjectMapper objectMapper,
+            OrchestratorProperties properties,
             @Qualifier(AsyncConfig.ORCHESTRATOR_EXECUTOR) Executor orchestratorExecutor) {
         this.sessionRegistry = sessionRegistry;
         this.conversationOrchestrator = conversationOrchestrator;
         this.objectMapper = objectMapper;
+        this.properties = properties;
         this.orchestratorExecutor = orchestratorExecutor;
+
+        OrchestratorProperties.Audio audio = properties.getAudio();
+        int sampleBytes = Math.max(1, audio.getBitsPerSample() / 8);
+        this.bytesPerSampleFrame = Math.max(1, sampleBytes * Math.max(1, audio.getChannels()));
+        int computedTarget = (audio.getSampleRateHz() * audio.getChunkDurationMs() / 1000) * this.bytesPerSampleFrame;
+        this.targetChunkBytes = Math.max(this.bytesPerSampleFrame, computedTarget);
+        this.maxBinaryMessageSizeBytes = properties.getWebsocket().getMaxBinaryMessageSizeBytes();
     }
 
     @Override
@@ -85,24 +101,38 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
             return;
         }
 
-        if (length % 2 != 0) {
+        if (length > maxBinaryMessageSizeBytes) {
+            log.warn("Rejecting oversized binary audio frame ({} bytes > max {}) for session '{}'.",
+                    length, maxBinaryMessageSizeBytes, sessionId);
+            sendErrorControl(sessionId, "Audio frame exceeds maximum size of " + maxBinaryMessageSizeBytes + " bytes");
+            return;
+        }
+
+        if (length % bytesPerSampleFrame != 0) {
             log.warn("Received odd-length PCM frame ({} bytes) for session '{}'.", length, sessionId);
-            sendControlMessage(sessionId, new UnityControlMessage(
-                    UnityControlMessage.TYPE_ERROR,
-                    sessionId,
-                    System.currentTimeMillis(),
-                    "Audio frame must have even byte length (16-bit PCM_S16LE)"
-            ));
+            sendErrorControl(sessionId, "Audio frame must have even byte length (16-bit PCM_S16LE)");
             return;
         }
 
         byte[] payload = new byte[length];
         buffer.get(payload);
 
+        if (isWavRiffHeader(payload)) {
+            log.warn("Rejecting WAV/RIFF-framed audio payload for session '{}'; raw PCM_S16LE required.", sessionId);
+            sendErrorControl(sessionId, "Audio frame must be raw PCM_S16LE without WAV/RIFF header");
+            return;
+        }
+
         sessionRegistry.getSession(sessionId).ifPresent(activeSession -> {
-            if (activeSession.enqueueAudioChunk(payload)) {
-                activeSession.drainAudioAsync(orchestratorExecutor, chunk -> forwardAudioChunk(sessionId, chunk));
+            activeSession.touchUnity();
+            List<byte[]> normalizedChunks = activeSession.normalizePcmFrame(payload, targetChunkBytes);
+            if (normalizedChunks.isEmpty()) {
+                return;
             }
+            for (byte[] chunk : normalizedChunks) {
+                activeSession.enqueueAudioChunk(chunk);
+            }
+            activeSession.drainAudioAsync(orchestratorExecutor, chunk -> forwardAudioChunk(sessionId, chunk));
         });
     }
 
@@ -120,26 +150,16 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
             control = objectMapper.readValue(message.getPayload(), UnityControlMessage.class);
         } catch (JsonProcessingException ex) {
             log.warn("Invalid Unity control JSON for session '{}': {}", sessionId, ex.getMessage());
-            sendControlMessage(sessionId, new UnityControlMessage(
-                    UnityControlMessage.TYPE_ERROR,
-                    sessionId,
-                    System.currentTimeMillis(),
-                    "Malformed control JSON"
-            ));
+            sendErrorControl(sessionId, "Malformed control JSON");
             return;
         }
 
         if (control == null || control.type() == null || control.type().isBlank()) {
-            sendControlMessage(sessionId, new UnityControlMessage(
-                    UnityControlMessage.TYPE_ERROR,
-                    sessionId,
-                    System.currentTimeMillis(),
-                    "Control message type must not be blank"
-            ));
+            sendErrorControl(sessionId, "Control message type must not be blank");
             return;
         }
 
-        sessionRegistry.getSession(sessionId).ifPresent(ActiveSession::touch);
+        sessionRegistry.getSession(sessionId).ifPresent(ActiveSession::touchUnity);
 
         switch (control.type()) {
             case UnityControlMessage.TYPE_SESSION_START ->
@@ -160,12 +180,7 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
             }
             default -> {
                 log.warn("Unsupported Unity control message type '{}' for session '{}'.", control.type(), sessionId);
-                sendControlMessage(sessionId, new UnityControlMessage(
-                        UnityControlMessage.TYPE_ERROR,
-                        sessionId,
-                        System.currentTimeMillis(),
-                        "Unsupported control message type: " + control.type()
-                ));
+                sendErrorControl(sessionId, "Unsupported control message type: " + control.type());
             }
         }
     }
@@ -193,17 +208,58 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
     }
 
     /**
-     * Asynchronously serializes and sends a {@link UnityResponsePacket} to the active Unity socket.
+     * Publishes a {@link UnityResponsePacket} to the Unity socket for its {@code sessionId},
+     * deduplicating by {@code turnId} so publisher hooks and futures never send twice.
+     */
+    public CompletableFuture<Boolean> publishResponsePacket(UnityResponsePacket packet) {
+        if (packet == null || packet.sessionId() == null || packet.sessionId().isBlank()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return sendTurnPacketOnce(packet.sessionId(), packet);
+    }
+
+    /**
+     * Sends a {@link UnityResponsePacket} only if its {@code turnId} has not yet been dispatched.
+     */
+    public CompletableFuture<Boolean> sendTurnPacketOnce(String sessionId, UnityResponsePacket packet) {
+        if (sessionId == null || sessionId.isBlank() || packet == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        ActiveSession activeSession = sessionRegistry.getSession(sessionId).orElse(null);
+        if (activeSession == null || !activeSession.tryClaimTurnId(packet.turnId())) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return sendResponsePacket(sessionId, packet);
+    }
+
+    /**
+     * Asynchronously serializes and enqueues a {@link UnityResponsePacket} for ordered delivery.
      */
     public CompletableFuture<Boolean> sendResponsePacket(String sessionId, UnityResponsePacket packet) {
         if (sessionId == null || sessionId.isBlank() || packet == null) {
             return CompletableFuture.completedFuture(false);
         }
-        return sendJsonAsync(sessionId, packet);
+        return sendJsonAsync(sessionId, normalizeResponsePacket(packet));
     }
 
     /**
-     * Asynchronously serializes and sends a {@link UnityControlMessage} to the active Unity socket.
+     * Streams a sequence of {@link UnityResponsePacket} frames smoothly in FIFO order to Unity.
+     */
+    public CompletableFuture<Boolean> sendResponsePackets(String sessionId, List<UnityResponsePacket> packets) {
+        if (sessionId == null || sessionId.isBlank() || packets == null || packets.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        CompletableFuture<Boolean> combined = CompletableFuture.completedFuture(true);
+        for (UnityResponsePacket packet : packets) {
+            if (packet != null) {
+                combined = combined.thenCombine(sendResponsePacket(sessionId, packet), (prev, cur) -> prev && cur);
+            }
+        }
+        return combined;
+    }
+
+    /**
+     * Asynchronously serializes and enqueues a {@link UnityControlMessage} for ordered delivery.
      */
     public CompletableFuture<Boolean> sendControlMessage(String sessionId, UnityControlMessage controlMessage) {
         if (sessionId == null || sessionId.isBlank() || controlMessage == null) {
@@ -212,27 +268,54 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
         return sendJsonAsync(sessionId, controlMessage);
     }
 
+    private void sendErrorControl(String sessionId, String detail) {
+        sendControlMessage(sessionId, new UnityControlMessage(
+                UnityControlMessage.TYPE_ERROR,
+                sessionId,
+                System.currentTimeMillis(),
+                detail
+        ));
+    }
+
+    private UnityResponsePacket normalizeResponsePacket(UnityResponsePacket packet) {
+        int defaultSampleRate = properties.getAudio().getSampleRateHz();
+        int sampleRateHz = packet.sampleRateHz() > 0 ? packet.sampleRateHz() : defaultSampleRate;
+        String triggerId = (packet.animationTriggerId() == null || packet.animationTriggerId().isBlank())
+                ? FALLBACK_ANIMATION_TRIGGER
+                : packet.animationTriggerId();
+        if (sampleRateHz == packet.sampleRateHz() && triggerId.equals(packet.animationTriggerId())) {
+            return packet;
+        }
+        return new UnityResponsePacket(
+                packet.sessionId(),
+                packet.turnId(),
+                packet.audioBase64(),
+                sampleRateHz,
+                triggerId,
+                packet.lipSyncFrames()
+        );
+    }
+
     private CompletableFuture<Boolean> sendJsonAsync(String sessionId, Object payload) {
-        return CompletableFuture.supplyAsync(() -> {
-            ActiveSession activeSession = sessionRegistry.getSession(sessionId).orElse(null);
-            if (activeSession == null) {
-                return false;
-            }
-            try {
-                String json = objectMapper.writeValueAsString(payload);
-                return activeSession.sendUnityText(json);
-            } catch (JsonProcessingException ex) {
-                log.error("Failed serializing outbound Unity payload for session '{}': {}",
-                        sessionId, ex.getMessage(), ex);
-                return false;
-            }
-        }, orchestratorExecutor);
+        ActiveSession activeSession = sessionRegistry.getSession(sessionId).orElse(null);
+        if (activeSession == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        try {
+            String json = objectMapper.writeValueAsString(payload);
+            return activeSession.enqueueUnityTextAsync(json, orchestratorExecutor);
+        } catch (JsonProcessingException ex) {
+            log.error("Failed serializing outbound Unity payload for session '{}': {}",
+                    sessionId, ex.getMessage(), ex);
+            return CompletableFuture.completedFuture(false);
+        }
     }
 
     private void forwardAudioChunk(String sessionId, byte[] chunk) {
         try {
             conversationOrchestrator.handleAudioChunk(sessionId, chunk)
-                    .thenAccept(optionalPacket -> optionalPacket.ifPresent(packet -> sendResponsePacket(sessionId, packet)))
+                    .thenAccept(optionalPacket ->
+                            optionalPacket.ifPresent(packet -> sendTurnPacketOnce(sessionId, packet)))
                     .exceptionally(ex -> {
                         log.error("Error processing audio chunk for session '{}': {}",
                                 sessionId, ex.getMessage(), ex);
@@ -253,6 +336,12 @@ public class UnityWebSocketHandler extends AbstractWebSocketHandler {
             session.getAttributes().put(ATTR_SESSION_ID, resolved);
         }
         return resolved;
+    }
+
+    static boolean isWavRiffHeader(byte[] payload) {
+        return payload.length >= 12
+                && payload[0] == 'R' && payload[1] == 'I' && payload[2] == 'F' && payload[3] == 'F'
+                && payload[8] == 'W' && payload[9] == 'A' && payload[10] == 'V' && payload[11] == 'E';
     }
 
     static String resolveSessionId(WebSocketSession session) {

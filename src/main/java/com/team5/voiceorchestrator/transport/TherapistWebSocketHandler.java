@@ -1,11 +1,13 @@
 package com.team5.voiceorchestrator.transport;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.team5.voiceorchestrator.config.AsyncConfig;
 import com.team5.voiceorchestrator.config.OrchestratorProperties;
 import com.team5.voiceorchestrator.contracts.TherapistControlMessage;
 import com.team5.voiceorchestrator.contracts.TherapistTranscriptEvent;
+import com.team5.voiceorchestrator.orchestration.ConversationOrchestrator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -19,6 +21,9 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.util.Base64;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
@@ -26,9 +31,9 @@ import java.util.regex.Pattern;
 /**
  * WebSocket handler for Team 1's Therapist React UI on {@code /ws/therapist} (Contract 2).
  * <p>
- * Self-registers its endpoint via {@link WebSocketConfigurer} so {@code config/WebSocketConfig}
- * remains untouched, and validates initial {@code auth} JWT frames before accepting live steering
- * or pushing {@link TherapistTranscriptEvent} updates.
+ * Self-registers its endpoint via {@link WebSocketConfigurer}, validates initial JWT {@code auth}
+ * frames, forwards {@code live_steering} instructions to {@link ConversationOrchestrator}, and
+ * streams {@link TherapistTranscriptEvent} updates ({@code CHILD}, {@code CHARACTER}, {@code SYSTEM}).
  */
 @Component
 public class TherapistWebSocketHandler extends TextWebSocketHandler implements WebSocketConfigurer {
@@ -38,19 +43,30 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
 
     private static final Pattern JWT_FORMAT_PATTERN =
             Pattern.compile("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$");
+    private static final Set<String> SUPPORTED_SPEAKERS = Set.of(
+            TherapistTranscriptEvent.SPEAKER_CHILD,
+            TherapistTranscriptEvent.SPEAKER_CHARACTER,
+            TherapistTranscriptEvent.SPEAKER_SYSTEM
+    );
 
     private static final Logger log = LoggerFactory.getLogger(TherapistWebSocketHandler.class);
 
     /**
-     * Callback hook allowing downstream orchestration components to receive covert
-     * {@code live_steering} instructions without coupling transport to orchestration internals.
+     * Optional callback hook allowing additional listeners to observe covert {@code live_steering}.
      */
     @FunctionalInterface
     public interface LiveSteeringListener {
         void onLiveSteering(String sessionId, String instruction);
     }
 
+    private enum JwtValidationResult {
+        VALID,
+        INVALID_FORMAT,
+        EXPIRED
+    }
+
     private final SessionRegistry sessionRegistry;
+    private final ConversationOrchestrator conversationOrchestrator;
     private final ObjectMapper objectMapper;
     private final OrchestratorProperties properties;
     private final Executor orchestratorExecutor;
@@ -58,11 +74,13 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
 
     public TherapistWebSocketHandler(
             SessionRegistry sessionRegistry,
+            ConversationOrchestrator conversationOrchestrator,
             ObjectMapper objectMapper,
             OrchestratorProperties properties,
             @Qualifier(AsyncConfig.ORCHESTRATOR_EXECUTOR) Executor orchestratorExecutor,
             ObjectProvider<LiveSteeringListener> liveSteeringListenerProvider) {
         this.sessionRegistry = sessionRegistry;
+        this.conversationOrchestrator = conversationOrchestrator;
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.orchestratorExecutor = orchestratorExecutor;
@@ -71,10 +89,12 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        String configured = properties.getWebsocket().getTherapistEndpoint();
+        String endpoint = (configured == null || configured.isBlank()) ? THERAPIST_ENDPOINT : configured;
         String allowedOrigins = properties.getWebsocket().getAllowedOrigins();
-        registry.addHandler(this, THERAPIST_ENDPOINT)
+        registry.addHandler(this, endpoint)
                 .setAllowedOrigins(allowedOrigins.split(","));
-        log.info("Registered TherapistWebSocketHandler at endpoint '{}'.", THERAPIST_ENDPOINT);
+        log.info("Registered TherapistWebSocketHandler at endpoint '{}'.", endpoint);
     }
 
     @Override
@@ -118,14 +138,17 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
 
         switch (control.type()) {
             case TherapistControlMessage.TYPE_AUTH -> handleAuth(session, sessionId, control.token());
-            case TherapistControlMessage.TYPE_PING -> handlePing(session, sessionId);
+            case TherapistControlMessage.TYPE_PING -> {
+                sessionRegistry.getSession(sessionId).ifPresent(ActiveSession::touchTherapist);
+                handlePing(session, sessionId);
+            }
             case TherapistControlMessage.TYPE_PONG ->
-                    sessionRegistry.getSession(sessionId).ifPresent(ActiveSession::touch);
+                    sessionRegistry.getSession(sessionId).ifPresent(ActiveSession::touchTherapist);
             case TherapistControlMessage.TYPE_LIVE_STEERING -> handleLiveSteering(session, sessionId, control);
             case TherapistControlMessage.TYPE_SESSION_START -> {
                 ActiveSession active = requireAuthenticatedSession(session, sessionId);
                 if (active != null) {
-                    active.touch();
+                    active.touchTherapist();
                     log.info("Therapist sent session_start for session '{}'.", sessionId);
                 }
             }
@@ -163,41 +186,67 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
     }
 
     /**
-     * Asynchronously pushes a {@link TherapistTranscriptEvent} to the authenticated therapist
-     * socket bound to {@code sessionId}.
+     * Asynchronously pushes a {@link TherapistTranscriptEvent} ({@code CHILD}, {@code CHARACTER},
+     * or {@code SYSTEM}) to the authenticated therapist socket bound to {@code sessionId}.
      */
     public CompletableFuture<Boolean> sendTranscriptEvent(String sessionId, TherapistTranscriptEvent event) {
-        if (sessionId == null || sessionId.isBlank() || event == null) {
+        if (sessionId == null || sessionId.isBlank() || event == null
+                || event.text() == null || event.text().isBlank()
+                || event.speaker() == null || !SUPPORTED_SPEAKERS.contains(event.speaker())) {
             return CompletableFuture.completedFuture(false);
         }
-        return CompletableFuture.supplyAsync(() -> {
-            ActiveSession activeSession = sessionRegistry.getSession(sessionId).orElse(null);
-            if (activeSession == null || !activeSession.isTherapistAuthenticated()) {
-                return false;
-            }
-            try {
-                String json = objectMapper.writeValueAsString(event);
-                return activeSession.sendTherapistText(json);
-            } catch (JsonProcessingException ex) {
-                log.error("Failed serializing TherapistTranscriptEvent for session '{}': {}",
-                        sessionId, ex.getMessage(), ex);
-                return false;
-            }
-        }, orchestratorExecutor);
+        ActiveSession activeSession = sessionRegistry.getSession(sessionId).orElse(null);
+        if (activeSession == null || !activeSession.isTherapistAuthenticated()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        try {
+            String json = objectMapper.writeValueAsString(event);
+            return activeSession.enqueueTherapistTextAsync(json, orchestratorExecutor);
+        } catch (JsonProcessingException ex) {
+            log.error("Failed serializing TherapistTranscriptEvent for session '{}': {}",
+                    sessionId, ex.getMessage(), ex);
+            return CompletableFuture.completedFuture(false);
+        }
+    }
+
+    /**
+     * Asynchronously pushes a {@link TherapistControlMessage} (e.g. server keep-alive {@code ping})
+     * to the active therapist socket bound to {@code sessionId}.
+     */
+    public CompletableFuture<Boolean> sendControlMessage(String sessionId, TherapistControlMessage controlMessage) {
+        if (sessionId == null || sessionId.isBlank() || controlMessage == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        ActiveSession activeSession = sessionRegistry.getSession(sessionId).orElse(null);
+        if (activeSession == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        try {
+            String json = objectMapper.writeValueAsString(controlMessage);
+            return activeSession.enqueueTherapistTextAsync(json, orchestratorExecutor);
+        } catch (JsonProcessingException ex) {
+            log.error("Failed serializing TherapistControlMessage for session '{}': {}",
+                    sessionId, ex.getMessage(), ex);
+            return CompletableFuture.completedFuture(false);
+        }
     }
 
     private void handleAuth(WebSocketSession session, String sessionId, String token) {
-        if (!isValidJwtFormat(token)) {
-            log.warn("Rejecting Therapist WebSocket '{}' for session '{}' due to invalid or missing JWT.",
-                    session.getId(), sessionId);
+        JwtValidationResult validation = validateJwtToken(token);
+        if (validation != JwtValidationResult.VALID) {
+            String reason = validation == JwtValidationResult.EXPIRED
+                    ? "Expired auth token"
+                    : "Invalid or missing auth token";
+            log.warn("Rejecting Therapist WebSocket '{}' for session '{}': {}.",
+                    session.getId(), sessionId, reason);
             ActiveSession.closeQuietly(session,
-                    new CloseStatus(CloseStatus.POLICY_VIOLATION.getCode(), "Invalid or missing auth token"));
+                    new CloseStatus(CloseStatus.POLICY_VIOLATION.getCode(), reason));
             return;
         }
 
         ActiveSession active = ensureRegisteredTherapistSession(session, sessionId);
         active.setTherapistAuthenticated(true);
-        active.touch();
+        active.touchTherapist();
         log.info("Therapist WebSocket '{}' authenticated for session '{}'.", session.getId(), sessionId);
     }
 
@@ -213,6 +262,9 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
         }
 
         active.offerLiveSteering(instruction);
+        active.touchTherapist();
+        conversationOrchestrator.submitLiveSteering(sessionId, instruction);
+
         LiveSteeringListener listener = liveSteeringListenerProvider.getIfAvailable();
         if (listener != null) {
             orchestratorExecutor.execute(() -> {
@@ -244,7 +296,7 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
 
         ActiveSession active = sessionRegistry.getSession(sessionId).orElse(null);
         if (active != null && active.getTherapistSession() == session) {
-            active.sendTherapistText(json);
+            active.enqueueTherapistTextAsync(json, orchestratorExecutor);
         } else if (session.isOpen()) {
             try {
                 session.sendMessage(new TextMessage(json));
@@ -278,6 +330,29 @@ public class TherapistWebSocketHandler extends TextWebSocketHandler implements W
             return existing;
         }
         return sessionRegistry.registerTherapistSession(sessionId, session);
+    }
+
+    private JwtValidationResult validateJwtToken(String token) {
+        if (!isValidJwtFormat(token)) {
+            return JwtValidationResult.INVALID_FORMAT;
+        }
+        String[] parts = token.trim().split("\\.");
+        try {
+            byte[] headerBytes = Base64.getUrlDecoder().decode(parts[0]);
+            byte[] payloadBytes = Base64.getUrlDecoder().decode(parts[1]);
+            JsonNode headerNode = objectMapper.readTree(headerBytes);
+            JsonNode payloadNode = objectMapper.readTree(payloadBytes);
+            if (!headerNode.isObject() || !payloadNode.isObject()) {
+                return JwtValidationResult.INVALID_FORMAT;
+            }
+            JsonNode expNode = payloadNode.get("exp");
+            if (expNode != null && expNode.isNumber() && expNode.asLong() < Instant.now().getEpochSecond()) {
+                return JwtValidationResult.EXPIRED;
+            }
+            return JwtValidationResult.VALID;
+        } catch (IllegalArgumentException | IOException ex) {
+            return JwtValidationResult.INVALID_FORMAT;
+        }
     }
 
     private static String resolveMessageSessionId(WebSocketSession session, TherapistControlMessage control) {
