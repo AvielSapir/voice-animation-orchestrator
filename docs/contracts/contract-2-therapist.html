@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>חוזה 2 — ממשק המטפל (צוות 1) מול מתזמר זמן אמת (צוות 5)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Varela+Round&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; min-width: 0; }
+    html, body {
+      overflow-x: hidden; width: 100%; margin: 0; padding: 0;
+      direction: rtl; text-align: right; background-color: #FAF7F0; color: #1F2421;
+      font-family: "Assistant", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 17.5px; line-height: 1.82;
+    }
+    .doc-container { max-width: 1120px; width: 94%; margin: 0 auto; padding: 48px 28px 96px; }
+    h1, h2, h3 { font-family: "Varela Round", "Assistant", sans-serif; font-weight: 400; color: #1F2421; margin-top: 0; }
+    h1 { font-size: 2.05rem; line-height: 1.32; margin-bottom: 14px; }
+    h2 { font-size: 1.48rem; line-height: 1.38; margin-bottom: 14px; }
+    h3 { font-size: 1.16rem; line-height: 1.45; margin-bottom: 10px; }
+    p { margin: 0 0 16px 0; }
+    p:last-child { margin-bottom: 0; }
+    .text-secondary { color: #434C46; }
+    code {
+      font-family: "Plus Jakarta Sans", monospace; font-size: 0.88em;
+      background-color: #E4DFD2; padding: 2px 7px; border-radius: 6px;
+      direction: ltr; display: inline-block;
+    }
+    pre {
+      margin: 12px 0; font-family: "Plus Jakarta Sans", Consolas, monospace; font-size: 0.9rem;
+      line-height: 1.65; background-color: #FAF7F0; border-radius: 12px; padding: 16px 20px;
+      direction: ltr; text-align: left; white-space: pre-wrap; word-break: break-word;
+      box-shadow: 0 1px 6px rgba(31, 36, 33, 0.04);
+    }
+    .hero { background-color: #EFECE3; border-radius: 22px; padding: 36px 38px; margin-bottom: 34px; box-shadow: 0 2px 12px rgba(31, 36, 33, 0.04); }
+    .tag { display: inline-block; white-space: nowrap; font-size: 0.86rem; font-weight: 600; padding: 5px 14px; border-radius: 999px; background-color: #D6E3DC; color: #1F352B; margin-bottom: 14px; }
+    .tag-sand { background-color: #EBE4D6; color: #463B28; }
+    .section { margin-bottom: 42px; }
+    .card { background-color: #EFECE3; border-radius: 18px; padding: 26px 28px; box-shadow: 0 2px 10px rgba(31, 36, 33, 0.035); margin-bottom: 18px; }
+    .card-sage { background-color: #E3ECE6; border-radius: 18px; padding: 24px 26px; box-shadow: 0 2px 10px rgba(31, 36, 33, 0.03); margin-bottom: 18px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    @media (max-width: 860px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="doc-container">
+    <header class="hero">
+      <span class="tag">חוזה 2 · גרסה 1.0.0 · WebSocket</span>
+      <h1>ממשק המטפל (צוות 1) מול מתזמר זמן אמת (צוות 5)</h1>
+      <p class="text-secondary">
+        ערוץ תקשורת חי דו־כיווני (<code>/ws/therapist</code>) שמאפשר למטפל לצפות בתמליל השיחה בזמן אמת ולשלוח הנחיות סמויות (Live Steering) לתוך הסשן הפעיל.
+      </p>
+    </header>
+
+    <section class="section">
+      <h2>איך החיבור עובד בפועל?</h2>
+      <div class="grid-2">
+        <div class="card">
+          <span class="tag tag-sand">צוות 5 ← צוות 1</span>
+          <h3>תמליל חי בזמן אמת (<code>TherapistTranscriptEvent</code>)</h3>
+          <p class="text-secondary">
+            ברגע שהילד מסיים לדבר (אחרי תמלול) וכשהדמות עונה, השרת דוחף למסך המטפל שורת תמליל עם זהות הדובר (<code>CHILD</code> או <code>CHARACTER</code>), הטקסט בעברית, וחותמת זמן.
+          </p>
+          <pre>{
+  "sessionId": "session-child-402",
+  "turnId": "turn-001",
+  "speaker": "CHILD",
+  "text": "קצת עצוב לי היום",
+  "timestampMs": 1795352010000
+}</pre>
+        </div>
+
+        <div class="card">
+          <span class="tag tag-sand">צוות 1 ← צוות 5</span>
+          <h3>בקרה והנחיות סמויות (<code>TherapistControlMessage</code>)</h3>
+          <p class="text-secondary">
+            המטפל שולח בתחילת החיבור הודעת <code>auth</code> עם ה־JWT שלו, ובמהלך הסשן יכול לשלוח הנחיית <code>live_steering</code> שמועברת אוטומטית מצוות 5 למנוע ה־AI (צוות 3).
+          </p>
+          <pre>{
+  "type": "live_steering",
+  "sessionId": "session-child-402",
+  "instruction": "תעבור לטון מעודד ותשאל על המשחק",
+  "timestampMs": 1795352020000
+}</pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card-sage">
+        <h3>תיאום עם חוזה 4 (צוות 3)</h3>
+        <p class="text-secondary">
+          צוות 5 אינו מפרש את תוכן ה־<code>live_steering</code> בעצמו — הוא שומר את ההנחיה האחרונה של הסשן ומצרף אותה בשדה האופציונלי <code>liveSteering</code> בבקשה הבאה אל צוות 3 (<code>AiTurnRequest</code>).
+        </p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

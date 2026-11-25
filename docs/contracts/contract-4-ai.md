@@ -2,11 +2,11 @@
 
 | Metadata | Value |
 | --- | --- |
-| **Version** | `1.0.0` |
+| **Version** | `1.1.0` |
 | **Status** | `LOCKED` (Phase 1) |
 | **Owner** | Team 5 — Tech Lead |
 | **Parties** | **Team 5** (`voice-animation-orchestrator`, caller) ↔ **Team 3** (AI Conversation Service, HTTP provider) |
-| **Date** | `2026-11-22` |
+| **Date** | `2026-11-25` |
 | **Human Overview (Hebrew)** | [`contract-4-ai.html`](./contract-4-ai.html) |
 | **JSON Schemas** | [`ai-turn-request.schema.json`](./schemas/ai-turn-request.schema.json), [`ai-turn-response.schema.json`](./schemas/ai-turn-response.schema.json) |
 | **Java DTOs & Interface (Team 5)** | `com.team5.voiceorchestrator.contracts.AiTurnRequest`, `AiTurnResponse`; `ai.AiClient` |
@@ -33,25 +33,32 @@ Schema: [`schemas/ai-turn-request.schema.json`](./schemas/ai-turn-request.schema
 
 | Field | Type | Required | Constraints & Semantics |
 | --- | --- | --- | --- |
-| `sessionId` | `string` | Yes | Non-blank active child session identifier. Team 3 uses this key to fetch and maintain session context (character persona, patient background, session goals, conversation history, and active therapist Live Steering). |
+| `sessionId` | `string` | Yes | Non-blank active child session identifier. Team 3 uses this key to fetch and maintain session context (character persona, patient background, session goals, conversation history). |
 | `transcript` | `string` | Yes | Non-blank UTF-8 Hebrew text transcribed from the child's completed speech utterance. |
+| `liveSteering` | `string` | No | Optional covert therapist steering instruction forwarded by Team 5 from Contract 2 (`live_steering`), omitted when null. |
 
 ### 2.1 Request JSON Example
 
 ```json
 {
   "sessionId": "session-child-402",
-  "transcript": "היום היה לי קצת קשה בהפסקה כי אף אחד לא רצה לשחק איתי"
+  "transcript": "היום היה לי קצת קשה בהפסקה כי אף אחד לא רצה לשחק איתי",
+  "liveSteering": "עודד אותו לשתף מי היה איתו ומה הרגיש, בטון רגוע"
 }
 ```
 
 ### 2.2 Java 17 Record (Team 3 / Team 5 DTO)
 
 ```java
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public record AiTurnRequest(
         String sessionId,
-        String transcript
+        String transcript,
+        String liveSteering
 ) {
+    public AiTurnRequest(String sessionId, String transcript) {
+        this(sessionId, transcript, null);
+    }
 }
 ```
 
