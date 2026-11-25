@@ -75,6 +75,7 @@ public class OrchestratorProperties {
 
     public static class WebSocket {
         private String endpoint = "/ws/unity";
+        private String therapistEndpoint = "/ws/therapist";
         private String allowedOrigins = "*";
         private int maxBinaryMessageSizeBytes = 65536;
         private int maxTextMessageSizeBytes = 16384;
@@ -85,6 +86,14 @@ public class OrchestratorProperties {
 
         public void setEndpoint(String endpoint) {
             this.endpoint = endpoint;
+        }
+
+        public String getTherapistEndpoint() {
+            return therapistEndpoint;
+        }
+
+        public void setTherapistEndpoint(String therapistEndpoint) {
+            this.therapistEndpoint = therapistEndpoint;
         }
 
         public String getAllowedOrigins() {
@@ -185,6 +194,11 @@ public class OrchestratorProperties {
         private String baseUrl = "http://localhost:8081";
         private String turnEndpoint = "/api/v1/turn";
         private long timeoutMs = 5000;
+        private String llmProvider = "groq";
+        private String llmModel = "qwen/qwen3.8-27b";
+        private java.util.List<String> availableLlmModels = new java.util.ArrayList<>(
+                java.util.List.of("qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b")
+        );
 
         public String getBaseUrl() {
             return baseUrl;
@@ -209,12 +223,37 @@ public class OrchestratorProperties {
         public void setTimeoutMs(long timeoutMs) {
             this.timeoutMs = timeoutMs;
         }
+
+        public String getLlmProvider() {
+            return llmProvider;
+        }
+
+        public void setLlmProvider(String llmProvider) {
+            this.llmProvider = llmProvider;
+        }
+
+        public String getLlmModel() {
+            return llmModel;
+        }
+
+        public void setLlmModel(String llmModel) {
+            this.llmModel = llmModel;
+        }
+
+        public java.util.List<String> getAvailableLlmModels() {
+            return availableLlmModels;
+        }
+
+        public void setAvailableLlmModels(java.util.List<String> availableLlmModels) {
+            this.availableLlmModels = availableLlmModels;
+        }
     }
 
     public static class Stt {
-        private String provider = "default";
+        private String provider = "groq";
+        private String model = "whisper-large-v3-turbo";
         private String apiKey = "";
-        private String language = "he-IL";
+        private String language = "he";
         private long timeoutMs = 4000;
 
         public String getProvider() {
@@ -223,6 +262,14 @@ public class OrchestratorProperties {
 
         public void setProvider(String provider) {
             this.provider = provider;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
         }
 
         public String getApiKey() {
@@ -251,9 +298,11 @@ public class OrchestratorProperties {
     }
 
     public static class Tts {
-        private String provider = "default";
+        private String provider = "cartesia";
+        private String model = "sonic-3.6";
         private String apiKey = "";
-        private String voiceId = "default";
+        private String voiceId = "";
+        private String language = "he";
         private long timeoutMs = 4000;
 
         public String getProvider() {
@@ -262,6 +311,14 @@ public class OrchestratorProperties {
 
         public void setProvider(String provider) {
             this.provider = provider;
+        }
+
+        public String getModel() {
+            return model;
+        }
+
+        public void setModel(String model) {
+            this.model = model;
         }
 
         public String getApiKey() {
@@ -278,6 +335,14 @@ public class OrchestratorProperties {
 
         public void setVoiceId(String voiceId) {
             this.voiceId = voiceId;
+        }
+
+        public String getLanguage() {
+            return language;
+        }
+
+        public void setLanguage(String language) {
+            this.language = language;
         }
 
         public long getTimeoutMs() {
