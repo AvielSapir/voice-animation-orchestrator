@@ -736,9 +736,11 @@
             </div>
             <div class="sub-card-light">
               <span class="tag tag-clay">גיבוי רך בתקלה</span>
-              <h3>המסך לעולם לא קופא</h3>
+              <h3>המסך לעולם לא קופא (וללא כפילויות)</h3>
               <p class="text-secondary">
-                אם שרת ה-AI לא זמין לרגע או החזיר פלט משובש, הלקוח שלנו בצוות 5 מחזיר אוטומטית משפט מרגיע בעברית בטון עדין עם <code lang="en" dir="ltr">talk_warm</code>, בלי להפיל את הסשן.
+                אם שרת ה-AI לא זמין לרגע, עבר Timeout (5 שניות) או החזיר פלט משובש — הלקוח שלנו בצוות 5 <strong>לא מבצע Retry אוטומטי</strong> (וכך מונע כפילויות), ושומר על תור של Turn אחד בכל פעם לכל <code lang="en" dir="ltr">sessionId</code>. במקום לקרוס, הוא מחזיר אוטומטית משפט מרגיע בעברית בטון עדין עם <code lang="en" dir="ltr">talk_warm</code>.
+                <br />אם צוות 3 מחזיר <strong><code lang="en" dir="ltr">410 Gone</code></strong> (המפגש נסגר בצוות 2/3), צוות 5 עוצר שליחת Turns נוספים ומנקה את הסשן בלי להקריא הודעת Fallback.
+                <br /><strong>אימות פנימי:</strong> הבקשות נשלחות עם הכותרת <code lang="en" dir="ltr">X-Internal-Service-Key</code> מתוך משתנה סביבה.
               </p>
             </div>
             <div class="sub-card-light">

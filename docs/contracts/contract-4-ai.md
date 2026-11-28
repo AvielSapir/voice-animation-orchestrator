@@ -18,9 +18,10 @@
 - **Base URL Config:** `orchestrator.ai.base-url` (env `AI_ENGINE_BASE_URL`, default `http://localhost:8081`)
 - **Endpoint Path:** `POST /api/v1/turn` (`orchestrator.ai.turn-endpoint`)
 - **Headers:**
-  - Request: `Content-Type: application/json; charset=utf-8`, `Accept: application/json`
+  - Request: `Content-Type: application/json; charset=utf-8`, `Accept: application/json`, `X-Internal-Service-Key: <shared-secret>` (read from `AI_INTERNAL_SERVICE_KEY` env var; omitted only in local unauthenticated dev)
   - Response: `Content-Type: application/json; charset=utf-8`
 - **Character Encoding:** Strict **UTF-8** (Hebrew text in `transcript` and `replyText` MUST NOT be ASCII-escaped or Latin-1 mangled).
+- **Turn Ordering & No Retry:** Team 5 sends at most **1 in-flight turn at a time per `sessionId`** in strict chronological order. On timeout or `5xx`, Team 5 uses its safe local fallback and **does not auto-retry** (preventing duplicate turns without `messageId`).
 - **Timeouts & Latency Targets:**
   - Client timeout (`orchestrator.ai.timeout-ms`): `5000 ms` (hard limit in `RemoteAiClient`; `2000 ms` in `mock` profile).
   - Target p95 server response latency: **`<= 1500 ms`** to preserve real-time child conversation flow.
@@ -148,7 +149,8 @@ Team 3 MUST choose `animationTriggerId` from this locked catalog (identical to C
 | `200 OK` | Valid `AiTurnResponse` JSON returned | Validates `replyText` is non-blank and passes to `AnimationMapper` + `TtsClient`. |
 | `400 Bad Request` | Invalid request JSON or blank `sessionId`/`transcript` | Logs error, triggers calm Hebrew fallback `AiTurnResponse`. |
 | `404 Not Found` | Unknown/expired `sessionId` on Team 3 | Logs error, triggers calm Hebrew fallback `AiTurnResponse`. |
-| `5xx` / Timeout (`> 5000ms`) / Connection Refused | Team 3 unavailable or LLM failure | Never propagates exception to crash WebSocket session; emits safe fallback `AiTurnResponse` (e.g., `"אני כאן איתך, אפשר להגיד לי את זה שוב?"`, `emotion=calm`, `animationTriggerId=talk_warm`). |
+| `410 Gone` | Session already closed by Team 2/3 | Stops sending turns for `sessionId`, marks session closed, and cleans up without speaking a fallback line. |
+| `5xx` / Timeout (`> 5000ms`) / Connection Refused | Team 3 unavailable or LLM failure | Never retries automatically and never crashes WebSocket session; emits safe fallback `AiTurnResponse` (e.g., `"אני כאן איתך, אפשר להגיד לי את זה שוב?"`, `emotion=calm`, `animationTriggerId=talk_warm`). |
 
 ---
 

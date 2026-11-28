@@ -1,6 +1,7 @@
 package com.team5.voiceorchestrator.orchestration;
 
 import com.team5.voiceorchestrator.ai.AiClient;
+import com.team5.voiceorchestrator.ai.AiSessionClosedException;
 import com.team5.voiceorchestrator.config.OrchestratorProperties;
 import com.team5.voiceorchestrator.contracts.AiTurnRequest;
 import com.team5.voiceorchestrator.contracts.TherapistTranscriptEvent;
@@ -19,9 +20,12 @@ import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Central end-to-end pipeline coordinator:
@@ -44,6 +48,8 @@ public class ConversationOrchestrator {
     private final ObjectProvider<UnityResponsePublisher> unityResponsePublisherProvider;
     private final ConcurrentHashMap<String, String> pendingLiveSteering = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, ByteArrayOutputStream> fallbackAudioBuffers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CompletableFuture<Void>> sessionTurnQueues = new ConcurrentHashMap<>();
+    private final Set<String> permanentlyClosedSessions = ConcurrentHashMap.newKeySet();
 
     public ConversationOrchestrator(
             OrchestratorProperties properties,
@@ -69,8 +75,17 @@ public class ConversationOrchestrator {
      * @param sessionId   active child session identifier
      * @param instruction covert steering instruction
      */
+    public void onSessionStarted(String sessionId) {
+        if (sessionId != null && !sessionId.isBlank()) {
+            permanentlyClosedSessions.remove(sessionId);
+        }
+    }
+
     public void submitLiveSteering(String sessionId, String instruction) {
         if (sessionId == null || sessionId.isBlank() || instruction == null || instruction.isBlank()) {
+            return;
+        }
+        if (permanentlyClosedSessions.contains(sessionId)) {
             return;
         }
         pendingLiveSteering.put(sessionId, instruction);
@@ -79,14 +94,18 @@ public class ConversationOrchestrator {
     /**
      * Processes an incoming audio chunk from Unity and, once a complete utterance is
      * available (via VAD or Phase 1 direct fallback), executes the asynchronous
-     * STT -> AI -> TTS pipeline and notifies any registered publishers.
+     * STT -> AI -> TTS pipeline strictly sequentially per session and notifies any registered publishers.
      *
      * @param sessionId  active child session identifier
      * @param audioChunk incoming PCM audio chunk
      * @return future resolving to a {@link UnityResponsePacket} when an utterance completes,
-     * or {@link Optional#empty()} while listening or if pipeline dependencies are not yet wired
+     * or {@link Optional#empty()} while listening, if closed, or if pipeline dependencies are not yet wired
      */
     public CompletableFuture<Optional<UnityResponsePacket>> handleAudioChunk(String sessionId, byte[] audioChunk) {
+        if (sessionId == null || sessionId.isBlank() || permanentlyClosedSessions.contains(sessionId)) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+
         SttClient stt = sttClientProvider.getIfAvailable();
         AiClient ai = aiClientProvider.getIfAvailable();
         TtsClient tts = ttsClientProvider.getIfAvailable();
@@ -105,7 +124,7 @@ public class ConversationOrchestrator {
             }
             utteranceAudio = vadResult.utteranceAudio();
         } else {
-            if (audioChunk == null || audioChunk.length == 0 || sessionId == null || sessionId.isBlank()) {
+            if (audioChunk == null || audioChunk.length == 0) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             utteranceAudio = processFallbackChunk(sessionId, audioChunk);
@@ -114,41 +133,99 @@ public class ConversationOrchestrator {
             }
         }
 
+        return enqueueTurn(sessionId, () -> executeTurn(sessionId, utteranceAudio, stt, ai, tts));
+    }
+
+    private CompletableFuture<Optional<UnityResponsePacket>> enqueueTurn(
+            String sessionId,
+            Supplier<CompletableFuture<Optional<UnityResponsePacket>>> turnSupplier) {
+        CompletableFuture<Optional<UnityResponsePacket>> resultFuture = new CompletableFuture<>();
+        CompletableFuture<Void> prev;
+        CompletableFuture<Void> next = new CompletableFuture<>();
+
+        synchronized (sessionTurnQueues) {
+            prev = sessionTurnQueues.getOrDefault(sessionId, CompletableFuture.completedFuture(null));
+            sessionTurnQueues.put(sessionId, next);
+        }
+
+        prev.handle((ignored, ex) -> null)
+                .thenCompose(ignored -> {
+                    if (permanentlyClosedSessions.contains(sessionId)) {
+                        resultFuture.complete(Optional.empty());
+                        return CompletableFuture.completedFuture((Void) null);
+                    }
+                    return turnSupplier.get()
+                            .whenComplete((res, err) -> {
+                                if (err != null) {
+                                    resultFuture.completeExceptionally(err);
+                                } else {
+                                    resultFuture.complete(res);
+                                }
+                            })
+                            .handle((res, err) -> (Void) null);
+                })
+                .whenComplete((ignored, ex) -> next.complete(null));
+
+        return resultFuture;
+    }
+
+    private CompletableFuture<Optional<UnityResponsePacket>> executeTurn(
+            String sessionId,
+            byte[] utteranceAudio,
+            SttClient stt,
+            AiClient ai,
+            TtsClient tts) {
         String turnId = UUID.randomUUID().toString();
         int sampleRateHz = properties.getAudio().getSampleRateHz();
 
         return stt.transcribe(sessionId, utteranceAudio)
                 .thenCompose(transcript -> {
+                    if (permanentlyClosedSessions.contains(sessionId)) {
+                        return CompletableFuture.completedFuture(Optional.<UnityResponsePacket>empty());
+                    }
                     publishTherapistEvent(TherapistTranscriptEvent.childUtterance(
                             sessionId, turnId, transcript, System.currentTimeMillis()));
-                    String liveSteering = sessionId != null ? pendingLiveSteering.remove(sessionId) : null;
-                    return ai.requestTurn(new AiTurnRequest(sessionId, transcript, liveSteering));
-                })
-                .thenCompose(aiResponse -> {
-                    publishTherapistEvent(TherapistTranscriptEvent.characterReply(
-                            sessionId,
-                            turnId,
-                            aiResponse.replyText(),
-                            aiResponse.animationTriggerId(),
-                            System.currentTimeMillis()));
-                    return tts.synthesize(sessionId, aiResponse.replyText(), aiResponse.ttsDirectives())
-                            .thenApply(audioBytes -> {
-                                UnityResponsePacket packet = new UnityResponsePacket(
+                    String liveSteering = pendingLiveSteering.remove(sessionId);
+                    return ai.requestTurn(new AiTurnRequest(sessionId, transcript, liveSteering))
+                            .thenCompose(aiResponse -> {
+                                if (permanentlyClosedSessions.contains(sessionId)) {
+                                    return CompletableFuture.completedFuture(Optional.<UnityResponsePacket>empty());
+                                }
+                                publishTherapistEvent(TherapistTranscriptEvent.characterReply(
                                         sessionId,
                                         turnId,
-                                        Base64.getEncoder().encodeToString(audioBytes),
-                                        sampleRateHz,
+                                        aiResponse.replyText(),
                                         aiResponse.animationTriggerId(),
-                                        List.of()
-                                );
-                                publishUnityResponse(packet);
-                                return Optional.of(packet);
+                                        System.currentTimeMillis()));
+                                return tts.synthesize(sessionId, aiResponse.replyText(), aiResponse.ttsDirectives())
+                                        .thenApply(audioBytes -> {
+                                            UnityResponsePacket packet = new UnityResponsePacket(
+                                                    sessionId,
+                                                    turnId,
+                                                    Base64.getEncoder().encodeToString(audioBytes),
+                                                    sampleRateHz,
+                                                    aiResponse.animationTriggerId(),
+                                                    List.of()
+                                            );
+                                            publishUnityResponse(packet);
+                                            return Optional.of(packet);
+                                        });
                             });
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = ex instanceof CompletionException && ex.getCause() != null ? ex.getCause() : ex;
+                    if (cause instanceof AiSessionClosedException) {
+                        log.info("Team 3 reported session '{}' closed (HTTP 410); stopping turns and cleaning up.", sessionId);
+                        permanentlyClosedSessions.add(sessionId);
+                        onSessionClosed(sessionId);
+                        return Optional.empty();
+                    }
+                    throw ex instanceof RuntimeException re ? re : new CompletionException(cause);
                 });
     }
 
     /**
-     * Cleans up per-session state when a Unity WebSocket connection closes.
+     * Cleans up per-session state when a Unity WebSocket connection closes or Team 3 reports HTTP 410 Gone.
      *
      * @param sessionId closed session identifier
      */
@@ -156,6 +233,9 @@ public class ConversationOrchestrator {
         if (sessionId != null) {
             pendingLiveSteering.remove(sessionId);
             fallbackAudioBuffers.remove(sessionId);
+            synchronized (sessionTurnQueues) {
+                sessionTurnQueues.remove(sessionId);
+            }
         }
         VadDetector vad = vadDetectorProvider.getIfAvailable();
         if (vad != null) {

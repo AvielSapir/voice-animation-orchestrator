@@ -156,10 +156,90 @@ class ConversationOrchestratorTest {
         orchestrator.onSessionClosed("s2");
         assertThat(resetSessionId.get()).isEqualTo("s2");
 
+        orchestrator.onSessionStarted("s2");
         Optional<UnityResponsePacket> result = orchestrator.handleAudioChunk("s2", new byte[]{1, 2}).join();
         assertThat(result).isPresent();
         assertThat(sttReceivedAudio.get()).containsExactly(10, 20, 30);
         assertThat(aiRequests).containsExactly(new AiTurnRequest("s2", "מה נשמע", null));
+    }
+
+    @Test
+    void handleAudioChunkSerializesTurnsPerSession() {
+        OrchestratorProperties properties = new OrchestratorProperties();
+        java.util.concurrent.atomic.AtomicInteger inFlight = new java.util.concurrent.atomic.AtomicInteger(0);
+        java.util.concurrent.atomic.AtomicInteger maxConcurrent = new java.util.concurrent.atomic.AtomicInteger(0);
+        List<String> order = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+        VadDetector vad = new VadDetector() {
+            @Override
+            public VadResult processChunk(String sessionId, byte[] audioChunk) {
+                return new VadResult(VadDetector.VadState.SPEECH_END, audioChunk);
+            }
+
+            @Override
+            public void resetSession(String sessionId) {
+            }
+        };
+        SttClient stt = (sessionId, audioBytes) ->
+                CompletableFuture.completedFuture(audioBytes[0] == 1 ? "ראשון" : "שני");
+        AiClient ai = request -> CompletableFuture.supplyAsync(() -> {
+            int current = inFlight.incrementAndGet();
+            maxConcurrent.updateAndGet(prev -> Math.max(prev, current));
+            try {
+                Thread.sleep(60);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            order.add(request.transcript());
+            inFlight.decrementAndGet();
+            return new AiTurnResponse("תשובה: " + request.transcript(), Map.of("emotion", "warm"), "talk_warm");
+        });
+        TtsClient tts = (sessionId, text, directives) -> CompletableFuture.completedFuture(new byte[]{1, 2});
+
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                properties, providerOf(vad), providerOf(stt), providerOf(ai), providerOf(tts),
+                providerOf(null), providerOf(null)
+        );
+
+        CompletableFuture<Optional<UnityResponsePacket>> f1 = orchestrator.handleAudioChunk("seq-s1", new byte[]{1});
+        CompletableFuture<Optional<UnityResponsePacket>> f2 = orchestrator.handleAudioChunk("seq-s1", new byte[]{2});
+
+        assertThat(f1.join()).isPresent();
+        assertThat(f2.join()).isPresent();
+        assertThat(maxConcurrent.get()).isEqualTo(1);
+        assertThat(order).containsExactly("ראשון", "שני");
+    }
+
+    @Test
+    void aiSessionClosed410StopsSubsequentTurns() {
+        OrchestratorProperties properties = new OrchestratorProperties();
+        java.util.concurrent.atomic.AtomicInteger aiCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+
+        VadDetector vad = new VadDetector() {
+            @Override
+            public VadResult processChunk(String sessionId, byte[] audioChunk) {
+                return new VadResult(VadDetector.VadState.SPEECH_END, audioChunk);
+            }
+
+            @Override
+            public void resetSession(String sessionId) {
+            }
+        };
+        SttClient stt = (sessionId, audioBytes) -> CompletableFuture.completedFuture("שלום");
+        AiClient ai = request -> {
+            aiCalls.incrementAndGet();
+            return CompletableFuture.failedFuture(new com.team5.voiceorchestrator.ai.AiSessionClosedException(request.sessionId()));
+        };
+        TtsClient tts = (sessionId, text, directives) -> CompletableFuture.completedFuture(new byte[]{1, 2});
+
+        ConversationOrchestrator orchestrator = new ConversationOrchestrator(
+                properties, providerOf(vad), providerOf(stt), providerOf(ai), providerOf(tts),
+                providerOf(null), providerOf(null)
+        );
+
+        assertThat(orchestrator.handleAudioChunk("closed-s1", new byte[]{1}).join()).isEmpty();
+        assertThat(orchestrator.handleAudioChunk("closed-s1", new byte[]{2}).join()).isEmpty();
+        assertThat(aiCalls.get()).isEqualTo(1);
     }
 
     private static <T> ObjectProvider<T> providerOf(T instance) {

@@ -27,6 +27,7 @@ orchestrator:
     base-url: ${AI_ENGINE_BASE_URL:http://localhost:8081}
     turn-endpoint: /api/v1/turn
     timeout-ms: 5000
+    internal-service-key: ${AI_INTERNAL_SERVICE_KEY:}
     llm-provider: ${LLM_PROVIDER:groq}
     llm-model: ${LLM_MODEL:qwen/qwen3.8-27b}
     available-llm-models:

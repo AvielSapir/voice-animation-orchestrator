@@ -194,6 +194,7 @@ public class OrchestratorProperties {
         private String baseUrl = "http://localhost:8081";
         private String turnEndpoint = "/api/v1/turn";
         private long timeoutMs = 5000;
+        private String internalServiceKey = "";
         private String llmProvider = "groq";
         private String llmModel = "qwen/qwen3.8-27b";
         private java.util.List<String> availableLlmModels = new java.util.ArrayList<>(
@@ -222,6 +223,14 @@ public class OrchestratorProperties {
 
         public void setTimeoutMs(long timeoutMs) {
             this.timeoutMs = timeoutMs;
+        }
+
+        public String getInternalServiceKey() {
+            return internalServiceKey;
+        }
+
+        public void setInternalServiceKey(String internalServiceKey) {
+            this.internalServiceKey = internalServiceKey;
         }
 
         public String getLlmProvider() {
