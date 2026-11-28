@@ -155,13 +155,13 @@ Team 3 MUST choose `animationTriggerId` from this locked catalog (identical to C
 ## 7. Safety Guardrails & Live Steering Boundary
 
 1. **Child Safety Guardrails:** Team 3 is responsible for enforcing content safety, distress detection, and age-appropriate Hebrew phrasing *before* returning `AiTurnResponse`. Team 5 treats `replyText` as ready-to-speak output.
-2. **Therapist Live Steering (v1.0.0 Scope):** In v1.0.0, therapist Live Steering instructions enter Team 3 through Team 1/Team 3's live control path and are resolved inside Team 3's `sessionId` orchestration state when generating `AiTurnResponse`. Should Contract 2 be routed through Team 5 in Phase 3, `AiTurnRequest` will be extended in a backwards-compatible `v1.1` update (optional nullable field).
+2. **Therapist Live Steering (`v1.1.0`):** Therapist `live_steering` instructions arrive at Team 5 from Team 1 via Contract 2 (`/ws/therapist`) and are forwarded by Team 5 in the optional `liveSteering` field of `AiTurnRequest` so Team 3 can inject them into the turn prompt.
 
 ---
 
 ## 8. Agent Implementation Checklist (Team 3)
 
-- [ ] Expose `POST /api/v1/turn` accepting `AiTurnRequest(sessionId, transcript)` in UTF-8 JSON.
+- [ ] Expose `POST /api/v1/turn` accepting `AiTurnRequest(sessionId, transcript, liveSteering)` in UTF-8 JSON (where `liveSteering` is optional/nullable).
 - [ ] Enforce LLM **Structured Output** so `replyText`, `ttsDirectives`, and `animationTriggerId` are always returned in valid JSON matching [`ai-turn-response.schema.json`](./schemas/ai-turn-response.schema.json).
 - [ ] Strip/forbid markdown, emojis, and parenthetical stage directions from `replyText`.
 - [ ] Constrain `animationTriggerId` to the 10 triggers in Section 5 (default `"talk_warm"`).

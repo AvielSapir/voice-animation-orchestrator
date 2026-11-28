@@ -574,6 +574,12 @@
                   <td>כן</td>
                   <td>מה שהילד אמר עכשיו בקול, לאחר שהומר לעברית על ידי מנוע התמלול.</td>
                 </tr>
+                <tr>
+                  <th scope="row"><code lang="en" dir="ltr">liveSteering</code></th>
+                  <td>טקסט (UTF-8)</td>
+                  <td>לא (אופציונלי)</td>
+                  <td>הנחיה סמויה מהמטפל שהתקבלה מצוות 1 (חוזה 2) ומועברת לצוות 3 לשילוב בתשובה.</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -584,7 +590,8 @@
               <figcaption id="fig-ai-req-json">דוגמה לבקשת JSON שנשלחת לצוות 3:</figcaption>
               <pre role="region" aria-labelledby="fig-ai-req-json" tabindex="0"><code lang="en" dir="ltr">{
   "sessionId": "session-child-402",
-  "transcript": "היום היה לי קצת קשה בהפסקה כי אף אחד לא רצה לשחק איתי"
+  "transcript": "היום היה לי קצת קשה בהפסקה כי אף אחד לא רצה לשחק איתי",
+  "liveSteering": "עודד אותו לשתף מי היה איתו ומה הרגיש, בטון רגוע"
 }</code></pre>
             </figure>
           </details>
@@ -738,7 +745,7 @@
               <span class="tag tag-ochre">הנחיות מטפל בזמן אמת</span>
               <h3>איפה נכנס <code lang="en" dir="ltr">Live Steering</code>?</h3>
               <p class="text-secondary">
-                המטפל יכול לכוון את הדמות מאחורי הקלעים תוך כדי מפגש. בשלב 1 הנחיות אלו יושבות אצל צוות 3 לפי <code lang="en" dir="ltr">sessionId</code> ונלקחות בחשבון אוטומטית כשהוא מרכיב את התשובה.
+                המטפל יכול לכוון את הדמות מאחורי הקלעים תוך כדי מפגש. הנחיה זו מגיעה מצוות 1 לצוות 5 דרך חוזה 2 (<code lang="en" dir="ltr">/ws/therapist</code>) ומועברת אל צוות 3 בתוך השדה <code lang="en" dir="ltr">liveSteering</code> של <code lang="en" dir="ltr">AiTurnRequest</code>.
               </p>
             </div>
           </div>
@@ -774,7 +781,7 @@
     </main>
 
     <footer class="doc-footer">
-      צוות 5 — Real-Time Voice &amp; Animation Orchestrator • חוזה 4 נעול לשלב 1 (<code lang="en" dir="ltr">v1.0.0</code>)
+      צוות 5 — Real-Time Voice &amp; Animation Orchestrator • חוזה 4 נעול לשלב 1 (<code lang="en" dir="ltr">v1.1.0</code>)
     </footer>
 
   </div>
